@@ -1,0 +1,676 @@
+version: 2
+
+# Every test below was sized against the data before it was written, and the
+# expected result is recorded next to it. Three of the marts tests are expected
+# to fail. They stay at error severity and are not narrowed to make them pass.
+#
+# Expected failures in the marts:
+#
+#   dim_statement  accepted_values  statement_code   1 value, the empty code
+#   fct            not_null         value            67 facts
+#   singular       assert_fact_duration_matches_concept_period_type   33 facts
+#
+# What is more interesting is which staging failures do not reach this layer,
+# because that is the measurement of how far each defect actually extends. Five
+# of the seven stop at the scope boundary:
+#
+#   unique fact_natural_key      138 keys at staging, 0 here. All 138 belong to
+#                                one filer, Ares Strategic Income Fund.
+#   not_null tag_label           2 concepts at staging, 0 here. Neither is used
+#                                by any of the ten companies.
+#   period end within 2010-2027  561 facts at staging, 0 here.
+#   period end not after filed   2 filings at staging, 0 here.
+#   one name per cik             172 companies at staging, 0 here. None of the
+#                                ten changed its name in 2025.
+#
+# Those five are not silenced. They still run and still fail at the staging
+# layer on every build, where they measure the source. Here they measure the
+# scope, and the difference between the two numbers is the finding.
+
+models:
+
+  # ----------------------------------------------------------- dim_company
+
+  - name: dim_company
+    description: >
+      One row per company in the analytical scope, ten of the 7,151 that filed
+      in 2025. A type 1 dimension holding the last known value of every
+      attribute, taken from each company's most recently filed filing. The
+      alternative, a type 2 with a validity range per version, would hold the
+      same ten rows: none of the ten changed its name. See
+      docs/modeling_decisions.md.
+    columns:
+
+      - name: company_key
+        description: md5 of the cik. The key every fact joins on.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: cik
+        description: >
+          SEC company identifier, ten digits. Also the join back to the scope
+          seed, which is the only place the roster of ten is written down.
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                # Expected: passes. The reverse direction, every seed row
+                # reaching the dimension, is asserted by
+                # assert_scope_roster_is_complete.
+                to: ref('scope_companies')
+                field: cik
+
+      - name: company_name
+        description: >
+          Name as filed on the most recent filing. Filed names are upper case
+          and abbreviated, MCDONALDS CORP rather than McDonald's Corporation:
+          this is the source's spelling, not a display name.
+        data_tests:
+          - not_null
+
+      - name: former_company_name
+        description: >
+          Previous name carried on the filing. Null for all ten, which is
+          consistent with none of them having changed name.
+
+      - name: name_changed_date
+        description: Date the former name changed. Null wherever former_company_name is.
+
+      - name: has_changed_name
+        description: >
+          True when the company filed under more than one name across the four
+          archives. False for all ten. It is 2.41% across the whole data set,
+          and that rate is what justifies a type 1 dimension.
+        data_tests:
+          - not_null
+
+      - name: sic_code
+        description: >
+          Self declared industry code. Two codes name one industry and the filer
+          picks which one, which is why the scope covers both; see
+          docs/scope.md.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                # Expected: passes. A third code appearing here would mean a
+                # company changed its declared industry, which is measured on
+                # 1.13% of companies across the data set.
+                values: ["5810", "5812"]
+
+      - name: industry_name
+        description: >
+          Label for the SIC code, written in the model. The quarterly archives
+          ship no SIC lookup table, so this is the project naming two codes
+          rather than a join.
+        data_tests:
+          - not_null
+
+      - name: business_state
+        description: Two letter state of the business address.
+
+      - name: business_country
+        description: Country of the business address.
+
+      - name: incorporation_state
+        description: >
+          State of incorporation, which can differ from where the business
+          operates and frequently does.
+
+      - name: ein
+        description: Employer identification number as filed.
+
+      - name: fiscal_year_end_mmdd
+        description: >
+          Fiscal year end as mmdd, kept as text so 0630 does not become 630.
+          1231 for all ten, which is criterion 3 of the scope and the reason
+          dim_date needs no fiscal calendar of its own.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                # Expected: passes. A failure here means a company in the scope
+                # moved its year end, and the quarters no longer line up.
+                values: ["1231"]
+
+      - name: filer_status
+        description: SEC filer category by size. 1-LAF, large accelerated, for all ten.
+
+  # ------------------------------------------------------------ dim_filing
+
+  - name: dim_filing
+    description: >
+      One row per filing made by a company in the scope: 40 of the 26,085 filed
+      in 2025, ten annual reports and thirty quarterly ones. The only filter is
+      the company. That the forty are all 10-K and 10-Q, all detailed, none
+      amended and none with a second registrant is a measured property of the
+      scope, asserted below rather than imposed.
+    columns:
+
+      - name: filing_key
+        description: md5 of the accession number.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: accession_number
+        description: The SEC accession number, unique per filing. Source column adsh.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: cik
+        description: >
+          Company that filed. Carried as the natural identifier rather than as a
+          foreign key: a dimension pointing at another dimension is a snowflake,
+          and the fact already carries both keys.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                # Expected: passes, zero orphans.
+                to: ref('dim_company')
+                field: cik
+
+      - name: form_type
+        description: >
+          EDGAR form type. Ten 10-K and thirty 10-Q. The scope required exactly
+          that cycle, so a third value appearing here means the cycle changed.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                # Expected: passes.
+                values: ["10-K", "10-Q"]
+
+      - name: is_amendment
+        description: >
+          True when the form type ends in /A. False for all forty. 4.57% of all
+          filings in 2025 are amendments, so this is a property of the scope
+          rather than of the source.
+        data_tests:
+          - not_null
+
+      - name: fiscal_year
+        description: Fiscal year as declared by the filer.
+        data_tests:
+          - not_null
+
+      - name: fiscal_period
+        description: Q1, Q2, Q3 or FY. Never empty in the scope, unlike 5.37% of all filings.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                # Expected: passes.
+                values: ["Q1", "Q2", "Q3", "FY"]
+
+      - name: period_end_date
+        description: Balance sheet date of the filing itself, not of a fact inside it.
+        data_tests:
+          - not_null
+
+      - name: filed_date
+        description: Date EDGAR assigned to the filing. From 2025-02-05 to 2025-11-10.
+        data_tests:
+          - not_null
+
+      - name: accepted_at
+        description: >
+          Timestamp EDGAR accepted the submission. It precedes filed_date on
+          7.88% of all filings because submissions after the daily cutoff are
+          dated the next business day, so no test asserts an ordering.
+        data_tests:
+          - not_null
+
+      - name: is_detailed
+        description: >
+          False when only statement level figures were tagged. True for all
+          forty; 47 filings across the data set are not.
+        data_tests:
+          - not_null
+
+      - name: is_previous_report
+        description: >
+          The prevrpt flag. False for all forty, and unusable as a restatement
+          signal in general: it is set on 5 filings out of 26,085. The
+          measurable definition lives on the fact as is_restated.
+
+      - name: registrant_count
+        description: Number of registrants. 1 for all forty; 495 filings across the data set carry more.
+        data_tests:
+          - not_null
+
+      - name: is_multi_registrant
+        description: True when more than one registrant filed jointly. False for all forty.
+        data_tests:
+          - not_null
+
+  # ----------------------------------------------------------- dim_account
+
+  - name: dim_account
+    description: >
+      One row per accounting concept the scope reports: 1,066 of the 329,861 in
+      the catalogue. Conformed to the fact, so every row is referenced by at
+      least one fact. Grain is (tag_name, tag_version), which means concept
+      counts and concept name counts differ: 726 rows over 379 standard names,
+      340 rows over 114 custom ones. Any count has to say which it means.
+    columns:
+
+      - name: account_key
+        description: md5 of tag name and version, carried over from staging as concept_key.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: tag_name
+        description: >
+          The XBRL element name. Not unique in this dimension: the same name
+          exists under two taxonomy years, and a custom name exists once per
+          filing that invented it.
+        data_tests:
+          - not_null
+
+      - name: tag_version
+        description: >
+          Taxonomy namespace for a standard concept, the filing's own accession
+          number for a company specific one. This is what makes a custom concept
+          count once per filing.
+        data_tests:
+          - not_null
+
+      - name: is_custom_tag
+        description: >
+          True for a company specific concept: 340 of 1,066 rows here, 31.9%,
+          carrying 1,337 of 22,604 facts, 5.9%. Kept rather than filtered
+          because their share is business question 4.
+        data_tests:
+          - not_null
+
+      - name: tag_label
+        description: >
+          Human readable label. Present on all 1,066. Two concepts in the full
+          catalogue have none, which a staging test found and which this test
+          does not, because neither is used by the ten companies.
+        data_tests:
+          - not_null
+
+      - name: tag_documentation
+        description: Definition text. Present on all 1,066, against 10.80% missing across the catalogue.
+
+      - name: data_type
+        description: monetary, shares, perShare, pure and the rest.
+        data_tests:
+          - not_null
+
+      - name: period_type
+        description: >
+          I for a value at a point in time, D for a value over a period. The
+          singular test assert_fact_duration_matches_concept_period_type checks
+          this against what the facts actually report, and finds 33
+          contradictions.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                # Expected: passes.
+                values: ["I", "D"]
+
+      - name: balance_type
+        description: >
+          D debit, C credit, null on 94 of the 1,066 concepts that have neither.
+          It is what says whether a negative value is an error or a contra
+          account behaving normally.
+        data_tests:
+          - accepted_values:
+              arguments:
+                # Nulls are ignored by this test, so it measures wrong values
+                # rather than the 94 absences. Expected: passes.
+                values: ["D", "C"]
+
+      - name: is_abstract
+        description: False on every concept in the source. Kept for fidelity; carries no information.
+
+  # --------------------------------------------------------- dim_statement
+
+  - name: dim_statement
+    description: >
+      One row per financial statement code, eight in total, read from the
+      distinct codes present in the source rather than written by hand. The one
+      dimension not conformed to the fact: facts in the scope reference five
+      codes, and UN, SI and the undocumented empty string are kept because this
+      is a code list and because dropping the empty one would delete a finding.
+    columns:
+
+      - name: statement_key
+        description: md5 of the statement code.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: statement_code
+        description: >
+          BS, IS, CF, EQ, CI, SI, UN, and an eighth value the SEC does not
+          document: the empty string, on 257 presentation lines across 8 filings,
+          seven of them registration statements. No fact in the scope references
+          it, and it is kept in the dimension so that the source's own
+          contradiction stays visible in the model rather than only in a
+          document.
+        data_tests:
+          - not_null
+          - accepted_values:
+              config:
+                # Expected to fail on 1 value, the empty string. The test
+                # reports offending values, not rows.
+                meta:
+                  expected_failures: 1
+              arguments:
+                values: ["BS", "IS", "CF", "EQ", "CI", "SI", "UN"]
+
+      - name: statement_name
+        description: Readable name of the statement, written in the model. Undocumented for the empty code.
+        data_tests:
+          - not_null
+
+      - name: display_order
+        description: >
+          Reading order for reports rather than source order: income statement,
+          balance sheet, cash flow, equity, comprehensive income, then the two
+          the project does not use, then the undocumented code.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: is_documented
+        description: False only for the empty code. The column exists so a report can exclude it without hard coding an empty string.
+        data_tests:
+          - not_null
+
+  # -------------------------------------------------------------- dim_date
+
+  - name: dim_date
+    description: >
+      One row per calendar day from 2016-01-01 to 2025-12-31, 3,653 rows,
+      generated rather than read. The bounds are derived from the dates the
+      scope actually uses and rounded outward to whole years. Every company in
+      the scope has a December year end, so calendar and fiscal periods are the
+      same thing and no fiscal columns are added.
+    columns:
+
+      - name: date_key
+        description: The date itself. Facts join on it directly, so no surrogate integer is needed.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: calendar_year
+        data_tests:
+          - not_null
+
+      - name: calendar_quarter
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                # Expected: passes.
+                values: [1, 2, 3, 4]
+                quote: false
+
+      - name: calendar_month
+        data_tests:
+          - not_null
+
+      - name: quarter_label
+        description: Year and quarter as one string, 2025 Q3, for chart axes.
+        data_tests:
+          - not_null
+
+      - name: is_quarter_end
+        description: True on 31 March, 30 June, 30 September and 31 December.
+        data_tests:
+          - not_null
+
+  # ------------------------------------------------- fct_financial_facts
+
+  - name: fct_financial_facts
+    description: >
+      One row per numeric fact reported by a company in the scope: 22,604 of the
+      14,619,494 in the staging layer. The grain is the eight fields the SEC
+      declares unique for num.txt. The only filter applied here is the company;
+      the duration, consolidation and duplicate decisions were taken in stg_num
+      and are not repeated.
+
+      Three flags exist because three different things in this source produce a
+      total larger than the truth without raising an error: is_year_to_date, for
+      the nine month figure that contains the quarters beside it;
+      is_consolidated, for the segment breakdowns that repeat the company total;
+      and is_latest_report, for the 1,840 rows superseded by a later filing that
+      reported the same economic fact again.
+    columns:
+
+      - name: fact_key
+        description: >
+          md5 of the eight fields the SEC declares unique. Unique here, on
+          22,604 rows, although the same test fails at staging on 138 keys: all
+          of them belong to one filer outside the scope.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: economic_fact_key
+        description: >
+          The same fact across filings: the natural key with the filing replaced
+          by the company. 22,604 rows carry 20,764 distinct values, because a
+          10-Q repeats the prior year comparative.
+        data_tests:
+          - not_null
+
+      - name: company_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                # Expected: passes, zero orphans.
+                to: ref('dim_company')
+                field: company_key
+
+      - name: filing_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                # Expected: passes, zero orphans.
+                to: ref('dim_filing')
+                field: filing_key
+
+      - name: account_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                # Expected: passes, zero orphans. dim_account is built from the
+                # concepts these facts reference, so a failure here means the
+                # two models disagree about the scope.
+                to: ref('dim_account')
+                field: account_key
+
+      - name: statement_key
+        description: >
+          The statement the fact was presented on, resolved to exactly one line
+          by the rule in the model. Not null on all 22,604: every fact has at
+          least one presentation line. A null here means the left join in the
+          model missed, which is how a silent row loss would announce itself.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                # Expected: passes, zero orphans.
+                to: ref('dim_statement')
+                field: statement_key
+
+      - name: period_end_key
+        description: End of the period the fact covers, not the date it was filed.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                # Expected: passes. It also proves dim_date's derived bounds
+                # cover every date the fact uses, which is the reason those
+                # bounds are derived rather than typed in.
+                to: ref('dim_date')
+                field: date_key
+
+      - name: period_length_qtrs
+        description: >
+          Quarters the fact spans: 0 a point in time, 1 a quarter, 2 a half
+          year, 3 nine months, 4 a full year. In the scope: 5,604 / 7,572 /
+          2,558 / 2,577 / 4,293.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                # Expected: passes. Values above 4 were filtered in stg_num.
+                values: [0, 1, 2, 3, 4]
+                quote: false
+
+      - name: is_year_to_date
+        description: >
+          True for the half year and nine month durations, 5,135 facts, which
+          contain the individual quarters filed beside them. An aggregate that
+          ignores this counts the same money twice.
+        data_tests:
+          - not_null
+
+      - name: unit_of_measure
+        description: >
+          Two units in the scope: USD on 21,438 facts and shares on 1,166.
+          Adding a dollar to a share is arithmetic on incompatible quantities,
+          so every measure filters on this column.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                # Expected: passes. 134 units appear across the data set; a
+                # third one arriving here means a scope company started
+                # reporting in another currency, which every existing measure
+                # would silently absorb.
+                values: ["USD", "shares"]
+
+      - name: segments
+        description: >
+          XBRL axis and member the fact is broken down by, empty for the company
+          level figure. Preserved as an empty string, never nulled: empty means
+          consolidated, which is a value.
+        data_tests:
+          - not_null
+
+      - name: is_consolidated
+        description: >
+          True for the company level figure, false for one of its breakdowns.
+          11,242 of 22,604 in the scope are consolidated, so an aggregate that
+          ignores this roughly doubles its total.
+        data_tests:
+          - not_null
+
+      - name: coregistrant
+        description: >
+          Subsidiary the fact is attributed to. Empty on all 22,604 in the
+          scope, against 156,404 facts across the data set that carry one.
+        data_tests:
+          - not_null
+
+      - name: value
+        description: >
+          The reported figure. Null on 67 facts, 0.30% of the scope, against
+          4.48% across the source. Kept rather than filtered: dropping the rows
+          would hide how much of a filing is left unpopulated, and only 1,434 of
+          the 655,105 empty values in the source carry a footnote explaining
+          anything.
+        data_tests:
+          - not_null:
+              # Expected to fail on 67 facts.
+              config:
+                severity: error
+                meta:
+                  expected_failures: 67
+
+      - name: footnote
+        description: Filer's note on the fact. Present on 93 facts in the scope.
+
+      - name: has_footnote
+        description: True on 93 facts, 0.41%.
+        data_tests:
+          - not_null
+
+      - name: has_duplicate_natural_key
+        description: >
+          False on all 22,604. The flag travels with the grain it describes so
+          that a scope which later includes the affected filer inherits the
+          warning rather than the surprise.
+        data_tests:
+          - not_null
+
+      - name: has_multiple_statement_lines
+        description: >
+          True on 3,368 facts, 14.9%, whose concept appears on more than one
+          presentation line of the same filing. The model picked one; this says
+          it had to choose.
+        data_tests:
+          - not_null
+
+      - name: spans_multiple_statements
+        description: >
+          True on 2,938 facts, 13.0%, whose presentation lines fall on more than
+          one financial statement, counted over every line of the concept
+          including parenthetical ones. Depreciation on both the income
+          statement and the cash flow statement is the ordinary case. Where this
+          is true, the statement_key is one defensible answer rather than the
+          only one.
+        data_tests:
+          - not_null
+
+      - name: presentation_line_number
+        description: Line number of the chosen presentation line, carried as a degenerate attribute.
+
+      - name: presentation_label
+        description: >
+          Label the filer wrote for the chosen line, which is how the figure
+          reads on the published statement rather than how the taxonomy names
+          it.
+
+      - name: is_latest_report
+        description: >
+          True on the most recently filed version of an economic fact, 20,764 of
+          22,604. The 1,840 rows where it is false were superseded by a later
+          filing repeating the same fact, and summing without this flag counts
+          them again.
+        data_tests:
+          - not_null
+
+      - name: is_restated
+        description: >
+          True when an earlier filing reported a different value for the same
+          economic fact. Two facts in the scope, both goodwill, both revised
+          down in the first 10-Q after the 10-K: Yum! Brands 92 to 88 million at
+          2024-04-30, Restaurant Brands 481 to 479 million at 2024-05-31. Across
+          all filings there are 19,451, which is why business question 5 is
+          answered against the staging layer instead.
+        data_tests:
+          - not_null
+
+      - name: _ingested_at
+        description: >
+          When the raw loader landed the row this fact was built from, carried
+          through from raw.num. It is here because the incremental batch is
+          defined on it: the alternative predicate, "this key is not in the
+          table yet", cannot see a corrected value arriving for a key that is
+          already present, which is the case the merge strategy exists for.
+        data_tests:
+          - not_null
+
+      - name: _batch_id
+        description: Identifier of the raw load that produced the row.
+        data_tests:
+          - not_null

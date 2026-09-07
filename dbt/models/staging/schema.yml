@@ -1,0 +1,520 @@
+version: 2
+
+# Every test below was sized against the loaded data before it was written, and
+# the expected result is recorded next to it. Seven of the fifty are expected to
+# fail. They are kept at error severity and are not narrowed to make them pass:
+# each failure is a property of the source that the marts have to answer for,
+# and a check that fails and is documented is worth more than one that always
+# passes.
+#
+# Expected failures on the 2025 archives, all seven confirmed by the run:
+#
+#   stg_tag   not_null         tag_label           2 concepts
+#   stg_pre   accepted_values  statement_code      1 value, on 257 lines
+#   stg_num   unique           fact_natural_key    138 keys, 276 rows
+#   stg_num   not_null         value               655,031 facts
+#   singular  assert_one_company_name_per_cik                172 companies
+#   singular  assert_filing_period_end_not_after_filed_date    2 filings
+#   singular  assert_fact_period_end_within_plausible_range  561 facts
+#
+# accepted_values reports offending values rather than rows, which is why the
+# statement_code failure counts 1 and not 257.
+
+models:
+
+  # --------------------------------------------------------------- stg_sub
+
+  - name: stg_sub
+    description: >
+      One row per filing, typed and renamed from raw.sub. 26,085 rows in,
+      26,085 rows out: no row is filtered. The analytical scope of ten
+      companies is applied in the marts, not here.
+    columns:
+
+      - name: accession_number
+        description: The SEC accession number, unique per filing. Source column adsh.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: cik
+        description: >
+          SEC company identifier, left padded to 10 digits. The source ships it
+          unpadded, 4 to 7 characters wide, and the submissions API and
+          config.SCOPE_CIKS both use the padded form.
+        data_tests:
+          - not_null
+
+      - name: company_name
+        description: >
+          Company name as filed. 172 companies file under more than one name
+          over the four quarters; see the singular test.
+        data_tests:
+          - not_null
+
+      - name: sic_code
+        description: >
+          Self declared industry code. Null on 715 filings (2.74%), and not
+          validated by the SEC: two codes name the eating and drinking places
+          industry and one pizza chain files under wholesale groceries.
+
+      - name: former_company_name
+        description: Previous name, present on 14,996 filings (57.49%).
+
+      - name: name_changed_date
+        description: Date the former name changed. Null wherever former_company_name is.
+
+      - name: filer_status
+        description: SEC filer category by size. Null on 294 filings.
+        data_tests:
+          - accepted_values:
+              arguments:
+                # 3-SRA and 5-SML are documented but do not occur in 2025.
+                # Expected: passes.
+                values: ["1-LAF", "2-ACC", "3-SRA", "4-NON", "5-SML"]
+
+      - name: fiscal_year_end_mmdd
+        description: >
+          Fiscal year end as mmdd, kept as text. 4,798 filings start in a zero,
+          so a numeric type would read 0630 as 630. Null on 68 filings.
+
+      - name: form_type
+        description: EDGAR form type. 10-Q on 16,754 filings and 10-K on 5,530.
+        data_tests:
+          - not_null
+
+      - name: is_amendment
+        description: True when the form type ends in /A. 1,193 filings (4.57%).
+
+      - name: period_end_date
+        description: Balance sheet date of the filing. Null on 4 filings.
+
+      - name: fiscal_year
+        description: Fiscal year as declared. Null on 1,400 non periodic filings.
+
+      - name: fiscal_period
+        description: Fiscal period. Null on the same 1,400 non periodic filings.
+        data_tests:
+          - accepted_values:
+              arguments:
+                # dbt's accepted_values ignores nulls, so the 1,400 empty markers
+                # are not flagged here. Expected: passes.
+                values: ["Q1", "Q2", "Q3", "FY"]
+
+      - name: filed_date
+        description: Date EDGAR assigned to the filing.
+        data_tests:
+          - not_null
+
+      - name: accepted_at
+        description: >
+          Timestamp EDGAR accepted the submission. Precedes filed_date on 2,056
+          filings (7.88%) because submissions after the daily cutoff are dated
+          the next business day. No test asserts accepted_at <= filed_date.
+        data_tests:
+          - not_null
+
+      - name: is_previous_report
+        description: >
+          The prevrpt flag, documented as marking a submission later amended.
+          Set on 5 filings out of 26,085, which makes it unusable as a
+          restatement signal; the measurable definition is a changed value for
+          the same fact key across filings.
+
+      - name: is_detailed
+        description: False on 47 filings (0.18%) where only statement level figures were tagged.
+
+      - name: registrant_count
+        description: Number of registrants on the filing. Greater than 1 on 495 filings, up to 13.
+        data_tests:
+          - not_null
+
+      - name: is_multi_registrant
+        description: True when registrant_count is greater than 1.
+
+  # --------------------------------------------------------------- stg_tag
+
+  - name: stg_tag
+    description: >
+      One row per accounting concept. 348,770 rows in, 329,861 out: the
+      catalogue ships inside every quarterly archive, so 18,909 rows are repeat
+      copies of a concept already present. Deduplication is lossless, verified:
+      no concept disagrees with itself on any attribute across quarters.
+    columns:
+
+      - name: concept_key
+        description: md5 of tag_name and tag_version, the declared natural key.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: tag_name
+        description: The XBRL element name.
+        data_tests:
+          - not_null
+
+      - name: tag_version
+        description: >
+          Taxonomy namespace for a standard concept, the filing's own accession
+          number for a company specific one.
+        data_tests:
+          - not_null
+
+      - name: is_custom_tag
+        description: >
+          True for a company specific concept. 317,473 of 329,861 concepts
+          (96.24%), carrying only 8.54% of the reported facts.
+        data_tests:
+          - not_null
+
+      - name: is_abstract
+        description: >
+          False on all 329,861 concepts. The column is part of the documented
+          source and is kept for fidelity, but carries no information here.
+
+      - name: data_type
+        description: monetary, shares, perShare, pure, percent, decimal, perUnit, mass or integer.
+        data_tests:
+          - not_null
+
+      - name: period_type
+        description: I for a value at a point in time, D for a value over a period.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                # Expected: passes.
+                values: ["I", "D"]
+
+      - name: balance_type
+        description: >
+          D for debit, C for credit, null on 34,068 concepts that have neither.
+          Determines the sign a value is expected to carry.
+        data_tests:
+          - accepted_values:
+              arguments:
+                # Nulls are ignored by this test, so it measures wrong values
+                # rather than the 34,068 absences. Expected: passes.
+                values: ["D", "C"]
+
+      - name: tag_label
+        description: >
+          Human readable label. Two concepts ship with no label at all, both of
+          them company specific: ContributionFromShareholders and
+          Accruedreceipts. This finding came out of the test rather than out of
+          the profiling. Expected to fail on 2 rows.
+        data_tests:
+          - not_null:
+              config:
+                meta:
+                  expected_failures: 2
+
+      - name: tag_documentation
+        description: Definition text. Null on 35,619 concepts (10.80%).
+
+  # --------------------------------------------------------------- stg_pre
+
+  - name: stg_pre
+    description: >
+      One row per presentation line: where a concept appears inside a filing's
+      rendered statements and under what label. 2,965,835 rows in and out.
+    columns:
+
+      - name: presentation_key
+        description: md5 of the declared key, accession_number, report_number and line_number.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: accession_number
+        description: Filing the line belongs to.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                # Expected: passes, zero orphans.
+                to: ref('stg_sub')
+                field: accession_number
+
+      - name: report_number
+        description: Statement number within the filing.
+        data_tests:
+          - not_null
+
+      - name: line_number
+        description: Position of the line within the statement.
+        data_tests:
+          - not_null
+
+      - name: statement_code
+        description: >
+          Which financial statement the line belongs to. The SEC documents
+          seven codes; an eighth value occurs, the empty string, on 257 lines
+          across 8 filings, seven of them registration statements. The empty
+          string is preserved rather than nulled so this test can see it.
+        data_tests:
+          - not_null
+          - accepted_values:
+              config:
+                # The test reports offending values, so the count it returns is
+                # 1, the empty string, and that one value covers 257 lines.
+                meta:
+                  expected_failures: 1
+              arguments:
+                values: ["BS", "IS", "CF", "EQ", "CI", "SI", "UN"]
+
+      - name: is_parenthetical
+        description: True when the line is a parenthetical disclosure rather than a statement line.
+
+      - name: render_file_type
+        description: H for HTML. The documented alternative X does not occur in 2025.
+        data_tests:
+          - accepted_values:
+              arguments:
+                # Expected: passes.
+                values: ["H", "X"]
+
+      - name: concept_key
+        description: The concept presented on this line.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                # Expected: passes, zero orphans.
+                to: ref('stg_tag')
+                field: concept_key
+
+      - name: presentation_label
+        description: Label the filer chose for the line. Null on 610 lines.
+
+      - name: is_negating
+        description: True when the label inverts the sign of the value as displayed.
+
+  # --------------------------------------------------------------- stg_num
+
+  - name: stg_num
+    description: >
+      One row per reported numeric fact. 14,621,539 rows in, 14,619,494 out:
+      2,045 rows are discarded by the documented duration filter and nothing
+      else is. Carries the three modelling decisions of week 2; see
+      docs/modeling_decisions.md.
+    columns:
+
+      - name: fact_natural_key
+        description: >
+          md5 of the eight fields the SEC declares unique for num.txt. It is
+          not unique: 138 key groups hold two rows each, 134 with different
+          values, all from one filer's schedule of investments. Both rows are
+          kept and flagged rather than resolved by an invented rule.
+        data_tests:
+          - not_null
+          - unique:
+              # Expected to fail on 138 keys.
+              config:
+                severity: error
+                meta:
+                  expected_failures: 138
+
+      - name: accession_number
+        description: Filing the fact was reported in.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                # Expected: passes, zero orphans.
+                to: ref('stg_sub')
+                field: accession_number
+
+      - name: concept_key
+        description: Accounting concept the fact reports.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                # Expected: passes, zero orphans.
+                to: ref('stg_tag')
+                field: concept_key
+
+      - name: period_end_date
+        description: >
+          End of the period the fact covers, not the filing date. 561 facts
+          fall outside 2010 to 2027 and are flagged by a singular test.
+        data_tests:
+          - not_null
+
+      - name: period_length_qtrs
+        description: >
+          Number of quarters the fact spans. 0 point in time, 1 quarter,
+          2 half year, 3 nine months, 4 full year. Values 5 to 124 are filtered
+          out in the model, 2,045 rows.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                # Passes only because the model filters the long tail; on raw data
+                # this list would miss 2,045 rows. Expected: passes.
+                values: [0, 1, 2, 3, 4]
+                quote: false
+
+      - name: is_year_to_date
+        description: >
+          True for the half year and nine month durations, which coexist in the
+          same table with the individual quarters they contain. Any aggregate
+          that ignores this flag counts the same money twice.
+        data_tests:
+          - not_null
+
+      - name: unit_of_measure
+        description: >
+          134 distinct units appear. USD covers 82.58%, shares 6.77% and pure
+          6.40%. Mixing units in an aggregation is arithmetic on incompatible
+          quantities, so this column is part of the fact key.
+        data_tests:
+          - not_null
+
+      - name: segments
+        description: >
+          XBRL axis and member the fact is broken down by, empty for a
+          consolidated figure. Part of the natural key. Preserved as an empty
+          string rather than nulled, because empty carries meaning here.
+        data_tests:
+          - not_null
+
+      - name: is_consolidated
+        description: >
+          True for the company level figure, false for one of its breakdowns.
+          57.76% of facts are breakdowns, so an aggregate that ignores this flag
+          more than doubles its total.
+        data_tests:
+          - not_null
+
+      - name: coregistrant
+        description: >
+          Subsidiary the fact is attributed to, empty when it belongs to the
+          filer. Populated on 156,404 facts (1.07%) across 1,692 co-registrants.
+        data_tests:
+          - not_null
+
+      - name: value
+        description: >
+          The reported figure. Null on 655,031 facts (4.48%), and the
+          expectation that a footnote explains the absence does not hold: only
+          1,434 of them carry one. Kept as a documented failure rather than
+          filtered away, because dropping the rows would hide how much of this
+          source is unpopulated.
+        data_tests:
+          - not_null:
+              # Expected to fail on 655,031 facts.
+              config:
+                severity: error
+                meta:
+                  expected_failures: 655031
+
+      - name: has_footnote
+        description: True on 36,706 facts (0.25%), most of them attached to a populated value.
+
+      - name: has_duplicate_natural_key
+        description: >
+          True on the 276 rows that share a natural key with another row. The
+          flag exists so a downstream model can exclude or resolve them
+          deliberately instead of discovering the fan out.
+        data_tests:
+          - not_null
+
+  # ------------------------------------------------- stg_filing_index
+
+  - name: stg_filing_index
+    description: >
+      One row per filing as indexed under one company by the SEC submissions
+      API, landed by src/incremental.py. 867 rows after the first incremental
+      run of 2026-08-06: everything the ten scope companies filed after the
+      bulk archives were loaded. Metadata only, no reported figures, so a
+      filing here carries no facts until the archive covering its quarter has
+      been downloaded. This is the one staging model whose coverage is the
+      scope rather than the whole source, and that follows from the endpoint
+      being queried one company at a time rather than from a filter.
+    columns:
+
+      - name: filing_index_key
+        description: >
+          md5 of the company and the accession number. A surrogate rather than
+          the accession number alone, because the grain is a filing as indexed
+          under a company: a joint filing lists two registrants and an ownership
+          form is indexed under the issuer it concerns. Measured on these 867
+          rows, no accession number appears under two companies, so the
+          distinction is defensive rather than currently load bearing.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: cik
+        description: The company whose index the filing was read from.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                # Expected: passes. The incremental stage reads exactly the ten
+                # companies of the seed, so a row outside it means the roster
+                # and the extractor have drifted apart.
+                to: ref('scope_companies')
+                field: cik
+
+      - name: accession_number
+        description: SEC accession number of the filing.
+        data_tests:
+          - not_null
+
+      - name: form_type
+        description: >
+          EDGAR form type, every one the endpoint returns. Form 4 leads with
+          543 of the 867, then 8-K with 84 and 144 with 82. No form is filtered
+          out: what a company files is a measurement, not an assumption.
+        data_tests:
+          - not_null
+
+      - name: is_financial_statement_form
+        description: >
+          True for 10-K and 10-Q, the forms this pipeline models. True on 34 of
+          the 867: ten annual reports and twenty four quarterly ones.
+        data_tests:
+          - not_null
+
+      - name: filing_date
+        description: Date EDGAR assigned to the filing.
+        data_tests:
+          - not_null
+
+      - name: accepted_at
+        description: >
+          Acceptance timestamp in naive UTC to the second, as the API publishes
+          it. stg_sub.accepted_at records the same event in US Eastern rounded
+          to the nearest minute, so the two disagree by five hours and by up to
+          thirty seconds on the same filing. That rounding is why the watermark
+          carries a sixty second margin.
+        data_tests:
+          - not_null
+
+      - name: quarterly_archive
+        description: >
+          The quarterly archive that will carry this filing's figures, derived
+          from the calendar quarter it was filed in. 2026q1, 2026q2 and 2026q3
+          appear here and are not in config.QUARTERS, which is the pointer from
+          a discovery run to the next extract run.
+        data_tests:
+          - not_null
+
+      - name: is_in_loaded_archives
+        description: >
+          True when the quarterly archives already carry this filing. True on 10
+          of the 867, and all ten are the last filing of each company in the
+          bulk load. They are the boundary re-reads the watermark margin exists
+          to allow: re-reading a filing is free because the write is an upsert,
+          while skipping one cannot be recovered.
+        data_tests:
+          - not_null
+
+      - name: is_xbrl
+        description: True when the submission carries XBRL data at all.
+
+      - name: document_bytes
+        description: Size of the submission in bytes, as reported by the index.

@@ -1,0 +1,57 @@
+name: sec_edgar
+version: 1.0.0
+config-version: 2
+
+profile: sec_edgar
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  sec_edgar:
+    staging:
+      # Staging is a typed, renamed projection of the raw layer. Views cost no
+      # storage and always reflect the current contents of raw, which matters
+      # because the raw load is re-run whenever a new quarter arrives.
+      +schema: staging
+      +materialized: view
+
+      # stg_num is the exception, and its materialisation is declared in the
+      # model rather than here because it is incremental and the strategy and
+      # key belong next to the SQL they govern. It carries a window function
+      # over 14.6 million rows, so a view would recompute that for every
+      # downstream query and a full table would reprocess every quarter already
+      # loaded.
+
+    marts:
+      # The star schema. Tables rather than views: the marts are read by Power
+      # BI through a Parquet export, they are small enough that storage is not a
+      # consideration at 22,604 facts, and materialising them is what makes the
+      # export a copy rather than a recomputation of the whole staging layer.
+      #
+      # The five dimensions stay full rebuilds on purpose. dim_company is a type
+      # 1 dimension holding each company's last known name, which is decided by
+      # looking at every filing rather than at the newest batch, and dim_account
+      # is conformed to the fact, so both have to see the whole input. None of
+      # them exceeds 3,653 rows, so a rebuild costs nothing worth optimising.
+      # fct_financial_facts declares its own incremental config in the model.
+      +schema: marts
+      +materialized: table
+
+seeds:
+  sec_edgar:
+    +schema: marts
+    scope_companies:
+      +column_types:
+        # Without this, the seed loader reads 0000063908 as the number 63908 and
+        # every join against the ten digit cik of stg_sub returns nothing, with
+        # no error. The scope would silently become empty.
+        cik: varchar
+        scope_rank: integer
+        company_label: varchar

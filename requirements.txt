@@ -1,0 +1,22 @@
+# HTTP client for the SEC EDGAR downloads
+requests==2.32.*
+
+# Reads the contact details for the SEC User-Agent out of .env. It also arrives
+# as a transitive dependency of dbt, but the pipeline depends on it directly and
+# so declares it directly.
+python-dotenv==1.2.*
+
+# Analytical database. Pinned to the 1.4 series for dbt-duckdb compatibility.
+duckdb==1.4.*
+
+# dbt adapter for DuckDB. dbt-core is deliberately left unpinned and resolved by
+# the adapter, which is the combination dbt itself reports as up to date. That
+# means the resolved version moves: a clean install on 2026-08-12 produced
+# dbt-core 1.12.1 against the 1.12.0 of the first build, and the suite returned
+# the same 146 passes and ten documented failures on both.
+# Needs Python 3.12: dbt trails new interpreter releases by months.
+dbt-duckdb==1.10.1
+
+# Used by the raw loader and the Parquet export step
+pandas==2.2.*
+pyarrow==18.*

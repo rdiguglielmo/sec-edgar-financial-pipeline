@@ -1,0 +1,11 @@
+# Normalise all text files to LF in the repository and on checkout.
+# Without this, Windows checkouts get CRLF and make fails on the Makefile.
+* text=auto eol=lf
+
+# Binary deliverables: never touch line endings or try to diff these.
+*.pbix binary
+*.parquet binary
+*.duckdb binary
+*.pdf binary
+*.png binary
+*.zip binary

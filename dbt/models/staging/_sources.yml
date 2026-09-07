@@ -1,0 +1,32 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: >
+      The SEC Financial Statement Data Sets as landed by src/load_raw.py. Four
+      tables, one per member of the quarterly archive, with the four 2025
+      archives stacked inside each one and tagged with the file they came from.
+      Every column is VARCHAR and every empty string is preserved as an empty
+      string: typing and null handling are the job of the staging layer, which
+      records them in SQL rather than leaving them to a reader's type inference.
+    tables:
+      - name: sub
+        description: One submission, that is one filing. 26,085 rows.
+      - name: tag
+        description: >
+          One accounting concept per quarterly archive. 348,770 rows covering
+          329,861 distinct concepts, because a concept reappears in every
+          archive whose filings use it.
+      - name: pre
+        description: One presentation line. 2,965,835 rows.
+      - name: num
+        description: One reported numeric fact. 14,621,539 rows.
+      - name: filing_index
+        description: >
+          The SEC submissions index for the ten companies of the scope, landed
+          by src/incremental.py rather than by the quarterly archives. One row
+          per filing as indexed under one company, holding metadata only: the
+          endpoint publishes accession numbers, forms and dates, never reported
+          figures. 867 rows after the first incremental run of 2026-08-06,
+          covering everything filed since the bulk load.

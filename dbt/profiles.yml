@@ -1,0 +1,28 @@
+# Connection profile for the project.
+#
+# This file is versioned on purpose. dbt profiles are usually kept out of a
+# repository because they hold credentials; DuckDB has none. Everything here is
+# a relative path, so committing it means the repository builds after a clone
+# with no setup step of its own.
+#
+# The path is relative to the working directory dbt is invoked from, which is
+# the repository root:
+#
+#   dbt build --project-dir dbt --profiles-dir dbt
+#
+# Run from anywhere else and dbt-duckdb will silently create an empty database
+# at that relative location, and every model will fail on a missing source.
+#
+# SEC_EDGAR_DB_PATH is an escape hatch for tools that invoke dbt with a
+# different cwd (e.g. the VS Code dbt extension, which always runs from the
+# folder containing this file). It defaults to the relative path above, so
+# the documented invocation and a fresh clone are unaffected.
+
+sec_edgar:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('SEC_EDGAR_DB_PATH', 'data/db/sec_edgar.duckdb') }}"
+      schema: main
+      threads: 4

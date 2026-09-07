@@ -1,0 +1,37 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Secrets - never commit
+.env
+
+# Raw source data: re-downloadable from the SEC, too large to version
+data/raw/*
+!data/raw/.gitkeep
+
+# Local DuckDB database: rebuilt by the pipeline
+data/db/*
+!data/db/.gitkeep
+*.duckdb
+*.duckdb.wal
+
+# dbt build output. profiles.yml is versioned on purpose: DuckDB needs no
+# credentials, so the file holds nothing but a relative path, and committing it
+# is what lets the project build straight after a clone.
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Power BI Desktop local state, should a PBIP project ever be opened here:
+# localSettings.json holds a DPAPI-encrypted signature tied to one machine and
+# user, and cache.abf is the imported data cache.
+powerbi/**/.pbi/localSettings.json
+powerbi/**/.pbi/cache.abf

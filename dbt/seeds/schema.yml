@@ -1,0 +1,48 @@
+version: 2
+
+seeds:
+
+  - name: scope_companies
+    description: >
+      The ten companies the analysis is limited to, and the only place that list
+      exists. dbt reads it through ref(), and src/config.py reads the same file
+      with the standard library csv module, so the roster cannot drift between
+      the Python stages and the SQL ones.
+
+      The selection is not a judgement. It is the output of six mechanical
+      criteria applied in analysis/00_scope_selection.sql and documented in
+      docs/scope.md: one industry (SIC 5810 and 5812), a complete 2025 filing
+      cycle of one 10-K and three 10-Q, a December fiscal year end, the six
+      accounts a financial comparison needs, no duplicate registrant, and the
+      ten largest by fiscal 2024 revenue.
+
+      Changing the scope means editing this file and rebuilding. Nothing else
+      in the project names a company.
+    columns:
+
+      - name: cik
+        description: >
+          SEC company identifier, left padded to ten digits, which is the form
+          stg_sub produces and the form the submissions API expects. Loaded as
+          text on purpose: as a number, 0000063908 becomes 63908.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: scope_rank
+        description: >
+          Position by fiscal 2024 revenue, 1 for McDonald's at 25.92 bn USD and
+          10 for Papa John's at 2.06 bn. Recorded so the roster explains its own
+          cut off, and deliberately not carried into dim_company: it is the
+          result of an analysis, not an attribute of the company.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: company_label
+        description: >
+          Readable name for this file only. Every model takes the company name
+          from the filings themselves, where McDonald's is filed as
+          MCDONALDS CORP, so this column is never joined or displayed.
+        data_tests:
+          - not_null
