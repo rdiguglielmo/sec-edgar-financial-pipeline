@@ -365,12 +365,14 @@ The third page reports on the pipeline's own inputs rather than on the business,
 [`dq_check_results.parquet`](output/parquet/dq_check_results.parquet) directly. That is the point of exporting the quality history alongside
 the marts.
 
-> **The report files themselves are not in this repository.** The semantic model, the generated
-> visual JSON and `theme-lab` — a token-based theme compiler with an automated WCAG contrast
-> audit that produces the look above — live in a separate repository, since the theme system is a
-> general-purpose tool rather than a part of this pipeline.
+> **The report files themselves are not in this repository.** `theme-lab` — a token-based theme
+> compiler with an automated WCAG contrast audit that produces the look above — lives in a separate
+> repository, since the theme system is a general-purpose tool rather than a part of this pipeline:
+> [rdiguglielmo/powerbi-theme-lab](https://github.com/rdiguglielmo/powerbi-theme-lab), where the
+> same three pages are shown in six different themes.
 >
-> *Link to follow once that repository is published.*
+> The semantic model and the generated visual JSON are not published anywhere. See
+> [What Is Not in This Repository](#what-is-not-in-this-repository).
 
 ## Key Technical Decisions
 
@@ -501,14 +503,16 @@ extract, load, model, test and export the warehouse is here and runnable.
 The report-authoring half lives separately, because it is a different discipline and a
 general-purpose tool rather than a part of this pipeline:
 
-- **The PBIP project** — the semantic model and generated visual JSON. Roughly forty
-  machine-written files that are not meaningful to read as source. What they produce is in
-  [Step 7](#step-7-dashboard), and `powerbi/verification-gates.sql` shows how every figure on
-  them was checked.
 - **`theme-lab`** — a theme compiler that builds a full Power BI theme from about twenty-five
   design tokens, with an automated WCAG contrast audit and a live preview harness in the build.
-
-*Link to follow once that repository is published.*
+  It is published, at
+  [rdiguglielmo/powerbi-theme-lab](https://github.com/rdiguglielmo/powerbi-theme-lab), together
+  with the dashboard above rendered in six themes.
+- **The PBIP project** — the semantic model and generated visual JSON. **Not published, here or
+  anywhere:** roughly forty machine-written files that are not meaningful to read as source, and
+  putting them in front of a reader costs more than it explains. What they produce is in
+  [Step 7](#step-7-dashboard), and `powerbi/verification-gates.sql` shows how every figure on
+  them was checked.
 
 ## Limitations
 
