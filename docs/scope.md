@@ -20,13 +20,13 @@ That query is the decision. It returns exactly the ten rows below.
 
 ## Contents
 
-_Each section expands on click._
+_Each entry states its decision; open one for the measurements behind it._
 
 - [The scope](#the-scope)
 - [Criteria](#criteria)
 - [Why eating and drinking places](#why-eating-and-drinking-places)
 - [What the scope supports](#what-the-scope-supports)
-- [Coupling to project 02](#coupling-to-project-02)
+- [Constraints this scope imposes](#constraints-this-scope-imposes)
 - [Limitations](#limitations)
 
 ---
@@ -34,10 +34,14 @@ _Each section expands on click._
 ## The scope
 
 <details open>
-<summary>Eating and drinking places, SIC 5810 and 5812.</summary>
+<summary><b>Ten eating and drinking places in SIC 5810 and 5812, all closing in December,
+all having filed a complete 2025 cycle.</b> 40 filings and 22,604 reported facts, spanning
+the business model of the industry end to end: McDonald's at a 45.2% FY2024 operating
+margin, Bloomin' Brands at 3.5%.</summary>
 
-**Eating and drinking places, SIC 5810 and 5812.** Ten companies, all with a
-December fiscal year end, all having filed a complete annual cycle in 2025.
+Ranked by FY2024 revenue. The last three columns measure how much of each statement is
+written in the shared US-GAAP vocabulary rather than in one the company invented, which is
+what decides whether two of these rows can be compared at all.
 
 | # | CIK | Company | SIC | FY2024 revenue | FY2024 operating margin | Standard tags | Custom tags | % standard facts |
 |---|---|---|---|---|---|---|---|---|
@@ -52,12 +56,15 @@ December fiscal year end, all having filed a complete annual cycle in 2025.
 | 9 | 0000030697 | Wendy's | 5810 | 2.25 bn USD | 16.5% | 103 | 15 | 93.4 |
 | 10 | 0000901491 | Papa John's International | 5812 | 2.06 bn USD | 7.6% | 131 | 8 | 97.3 |
 
-Together they contribute 40 filings and 22,604 reported facts, of which 11,242
-are consolidated. They use 379 distinct standard tags and 114 custom ones.
+Of those facts, 11,242 are consolidated company level figures and the rest are
+segment breakdowns. The ten use 379 distinct standard tags and 114 custom ones.
 
-The scope spans the business model spectrum end to end: McDonald's earns 45.2%
-with roughly 95% of its restaurants franchised, while Bloomin' Brands earns 3.5%
-operating the restaurants it owns.
+The margin spread is not dispersion for its own sake, and it is not a difference
+in how well these companies are run. McDonald's earns its margin on royalties
+from restaurants it does not operate, roughly 95% of them franchised. Bloomin'
+Brands operates the restaurants it owns and carries their payroll, rent and food
+cost. Same industry, opposite cost structure, and the difference is reported
+rather than inferred.
 
 </details>
 
@@ -66,10 +73,10 @@ operating the restaurants it owns.
 ## Criteria
 
 <details>
-<summary>Each criterion is mechanical and reproducible.</summary>
-
-Each criterion is mechanical and reproducible. None of them is a judgement about
-which companies are interesting.
+<summary><b>Six criteria narrow 7,151 companies to ten, and not one of them is a
+judgement about which companies are interesting.</b> The same industry, a complete 2025
+filing cycle, a December year end, the accounts a comparison needs, no duplicate registrant,
+then size as the tie breaker.</summary>
 
 ### 1. The same industry
 
@@ -142,8 +149,9 @@ companies for a reporting choice rather than for a missing account.
 
 Cost of revenue is **not** required, because only 46.13% of candidates report it.
 Gross margin is therefore out of reach for a sector wide comparison, and
-operating margin is the finest margin that generalises. This constrains the
-analysis in project 02 and is recorded as such.
+operating margin is the finest margin that generalises. That is a property of
+the source rather than of the selection, so it carries to any analysis built on
+this scope.
 
 2,876 companies pass all criteria to this point, 42 of them in the two SIC codes
 of the scope.
@@ -179,11 +187,13 @@ later.
 ## Why eating and drinking places
 
 <details>
-<summary>Six sectors were measured against the same criteria before choosing.</summary>
+<summary><b>Chosen over five other sectors for a 44.2 point margin spread that has a
+structural explanation.</b> A sector where every company earns the same margin gives the
+analysis nothing to explain, and one whose spread has no explanation gives it nothing to
+say.</summary>
 
-Six sectors were measured against the same criteria before choosing. The
-deciding column is margin dispersion: a sector where every company earns the same
-margin gives the analysis nothing to explain.
+Six sectors were measured against the same criteria. The deciding column is
+margin dispersion, and the basis it is measured on has to be stated with it.
 
 Dispersion is measured over **the twelve largest qualifying companies with at
 least 500 million USD of FY2024 revenue**, on a December fiscal year end, with
@@ -200,12 +210,11 @@ rather than by the sector's structure.
 | 5500 | Auto dealers | 14 | 13 | -11.4% to 10.2% | 21.6 pp |
 | 4911 | Electric services | 30 | 30 | 8.6% to 26.4% | 17.8 pp |
 
-Spread alone is not the criterion. **A spread is only useful if it has a
-structural explanation**, and in eating and drinking places it has one that is
-visible in the data: franchisors collect royalties without carrying the cost of
-operating the restaurants, while company operators carry both. McDonald's earns
-45.2% with roughly 95% of its restaurants franchised; Bloomin' Brands earns 3.5%
-operating the restaurants it owns.
+Two of the six spread wider than this one, so spread by itself decides
+nothing. What decides it is that here the driver is reported rather than
+inferred: the franchised against company operated split is filed as a segment
+breakdown, on axes such as `ProductOrService`. An analysis can point at the
+column that produces the difference instead of asserting the difference.
 
 The rejected alternatives, briefly:
 
@@ -227,9 +236,9 @@ The rejected alternatives, briefly:
 ## What the scope supports
 
 <details>
-<summary>Measured on the selected companies, not assumed.</summary>
-
-Measured on the selected companies, not assumed.
+<summary><b>Three complete fiscal years and six quarterly periods per company, every one
+of them read from the comparatives inside the filings rather than from the filing
+dates.</b> The fourth quarter is never reported directly and has to be derived.</summary>
 
 **Quarterly series.** Every company reports revenue for six quarterly periods:
 Q1 to Q3 of 2024 and Q1 to Q3 of 2025. That comes from the comparatives carried
@@ -249,21 +258,29 @@ as derived wherever it appears.
 
 ---
 
-## Coupling to project 02
+## Constraints this scope imposes
 
 <details>
-<summary>This choice is not reversible without redoing the comparative analysis that follows.</summary>
+<summary><b>Three constraints carry forward to any comparison built on these ten
+companies.</b> Operating margin rather than gross, a fourth quarter that is derived rather
+than reported, and one company whose market is not the market of the other nine.</summary>
 
-This choice is not reversible without redoing the comparative analysis that
-follows. The business questions in that project are answered on these ten
-companies, so the constraints found here carry forward:
+None of the three is a defect in the selection. Each is a measured property of
+the source that the selection inherits, and a comparison that does not state
+them reports a figure it cannot defend.
 
-- Operating margin, not gross margin. Cost of revenue is reported by 12 of the 42
-  qualifying companies in the sector.
-- Q4 is derived, not reported.
-- Yum China operates entirely in China. It reports in US dollars under the same
-  SIC code and meets every criterion, but its market is not the same market as
-  the other nine, and any margin comparison involving it should say so.
+- **Operating margin, not gross margin.** Cost of revenue is reported by 12 of
+  the 42 qualifying companies in the sector, so a gross margin comparison covers
+  under a third of the field while looking sector wide.
+- **Q4 is derived, not reported.** It is the full year less the first three
+  quarters, so it inherits the error of four reported figures and has to be
+  labelled as derived wherever it appears.
+- **Yum China operates entirely in China.** It reports in US dollars under the
+  same SIC code and meets every criterion, but its market is not the market of
+  the other nine, and any margin comparison including it should say so.
+
+Reversing the selection means redoing every comparison built on it, which is why
+the criteria above are written down rather than remembered.
 
 </details>
 
@@ -272,15 +289,16 @@ companies, so the constraints found here carry forward:
 ## Limitations
 
 <details>
-<summary>Ten companies is a comparison, not a statistical sample.</summary>
+<summary><b>The scope is defined by what filers declared, not by what they do.</b> The
+SIC code is the weakest link in it: self reported, validated by nobody, and the thing every
+criterion here ultimately rests on.</summary>
 
 - Ten companies is a comparison, not a statistical sample. Nothing here supports a
   claim about the restaurant industry as a whole.
-- **SIC codes are self reported and are not a rigorous taxonomy.** This is the
-  weakest link in the scope. The same industry occupies two codes, one large
-  chain files under wholesale groceries, and 88 companies across the data set
-  report more than one SIC code over the four quarters. The scope is defined by
-  what filers declared, not by what they do.
+- **The industry code carries no validation.** 88 companies across the data set
+  report more than one code over the four quarters; the two codes this scope uses
+  name the same business; and Domino's Pizza files under 5140, wholesale
+  groceries, so no filter on the industry can recover it.
 - The December fiscal year end requirement excludes eleven qualifying companies
   in the same industry, among them **Starbucks**, Brinker, Jack in the Box and
   Cracker Barrel. Starbucks would otherwise be the largest company in the scope.
