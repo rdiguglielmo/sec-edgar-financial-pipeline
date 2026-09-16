@@ -21,7 +21,7 @@ next to it in the model itself.
 
 ## Contents
 
-_Each section expands on click._
+_Each entry states its decision; open one for the measurements behind it._
 
 - [1. Which durations enter the fact](#1-which-durations-enter-the-fact)
 - [2. Consolidated figures or the full breakdown](#2-consolidated-figures-or-the-full-breakdown)
@@ -31,16 +31,19 @@ _Each section expands on click._
 - [6. Which presentation line a fact belongs to](#6-which-presentation-line-a-fact-belongs-to)
 - [7. How the analytical scope reaches the marts](#7-how-the-analytical-scope-reaches-the-marts)
 - [8. What the marts cover](#8-what-the-marts-cover)
-- [9. The hazard this session added: one fact, several filings](#9-the-hazard-this-session-added-one-fact-several-filings)
+- [9. One economic fact, several filings](#9-one-economic-fact-several-filings)
 - [10. Which models are incremental, and with which write strategy](#10-which-models-are-incremental-and-with-which-write-strategy)
-- [Decisions still open](#decisions-still-open)
+- [What the model deliberately does not decide](#what-the-model-deliberately-does-not-decide)
 
 ---
 
 ## 1. Which durations enter the fact
 
 <details open>
-<summary>qtrs states how many quarters a fact spans: 0 a value at a point in time, 1 a quarter, 2 a...</summary>
+<summary><b>The double counting hazard stays in the table on purpose, made visible as a
+column rather than filtered away.</b> Nine of the ten companies report interim cash flow only
+as a year-to-date figure, so the filter that removes the hazard also removes the cash flow
+statement.</summary>
 
 `qtrs` states how many quarters a fact spans: `0` a value at a point in time,
 `1` a quarter, `2` a half year, `3` nine months year to date, `4` a full year.
@@ -100,7 +103,10 @@ That converts a silent error into a deliberate choice.
 ## 2. Consolidated figures or the full breakdown
 
 <details>
-<summary>segments carries the XBRL axis and member a fact is broken down by.</summary>
+<summary><b>The segment breakdown is kept in full, 8,445,022 rows that restate a total
+already present.</b> The thesis of the scope, franchised against company operated, is reported
+only as a breakdown, so filtering it out would remove the question rather than the
+noise.</summary>
 
 `segments` carries the XBRL axis and member a fact is broken down by. Empty
 means the consolidated, company level figure. A consolidated fact and each of
@@ -145,8 +151,8 @@ point margin spread, is only reported as a segment breakdown: Chipotle files
 11,247 million under `ProductOrService=FoodAndBeverage`, Restaurant Brands
 2,919 million under `ProductOrService=RoyaltyPropertyRevenueandFranchisor`.
 
-That last point comes with a caveat worth stating now rather than discovering in
-project 02. **Members are named by the filer, so they do not line up across
+That last point comes with a caveat worth stating here rather than discovering
+downstream. **Members are named by the filer, so they do not line up across
 companies.** The scope uses 468 distinct segment strings and **438 of them are
 used by exactly one company.** Only two are used by all ten,
 `EquityComponents=CommonStock` and `EquityComponents=RetainedEarnings`. Any
@@ -187,7 +193,10 @@ facts in the scope.
 ## 3. Duplicates on the key the SEC declares unique
 
 <details>
-<summary>num.txt is documented as unique on (adsh, tag, version, ddate, qtrs, uom, segments, coreg).</summary>
+<summary><b>Both rows of all 138 duplicated keys are kept, and the <code>unique</code> test
+is allowed to fail.</b> They are two real forward currency positions colliding on an identifier
+the filer reused, and every rule that would make the test pass picks one of them at random and
+calls it a decision.</summary>
 
 `num.txt` is documented as unique on
 `(adsh, tag, version, ddate, qtrs, uom, segments, coreg)`. It is not.
@@ -253,16 +262,15 @@ own documentation and that the model knows it.
 ## 4. What the staging layer covers
 
 <details>
-<summary>The staging models are a typed, renamed projection of the entire raw layer: 26,085 filings and...</summary>
+<summary><b>Staging is a typed, renamed projection of the whole source: 26,085 filings and
+14.6 million facts, not the forty filings of the scope.</b> The scope is a property of the
+analysis rather than of the source, and filtering it in here would leave every quality check
+measuring 0.15% of the filings.</summary>
 
-**The staging models are a typed, renamed projection of the entire raw layer:
-26,085 filings and 14.6 million facts, not the forty filings of the scope.**
-
-The scope is a property of the analysis, not of the source. Filtering it in at
-staging would leave every data quality test measuring 0.15% of the filings, and
-would remove the base that business question 4, the share of custom versus
-standard tagging, is asked about. The scope filter belongs to the marts, where
-it can be stated once against a dimension.
+It would also remove the base that business question 4, the share of custom
+against standard tagging, is asked about. The scope filter belongs to the marts,
+where it can be stated once against a dimension and inherited by everything that
+joins to it.
 
 The four models therefore mirror the four source files one to one, with one
 exception that is a property of the source rather than a filter:
@@ -288,7 +296,10 @@ archive.
 ## 5. Company identity: last known name or a versioned history
 
 <details>
-<summary>dim_company can hold one row per company carrying the last known value of every attribute, a...</summary>
+<summary><b>A type 2 dimension would hold exactly the same ten rows as a type 1, so the
+model takes the type 1.</b> None of the ten companies changed its name during 2025, and
+versioning would buy a date range join on the fact to represent a change that does not
+occur.</summary>
 
 `dim_company` can hold one row per company carrying the last known value of
 every attribute, a type 1 dimension, or one row per version of the company with
@@ -323,8 +334,7 @@ The measurement that decides it is the third column. **None of the ten companies
 in the scope changed its name during 2025**, so a type 2 dimension keyed on the
 name holds exactly the same ten rows as a type 1. Versioning every attribute
 would add a single row, because Restaurant Brands files two different business
-state values, and it would add it for a change no analysis in this project or in
-project 02 asks about.
+state values, and it would add it for a change no analysis asks about.
 
 The cost avoided is not the extra row, it is the join. A type 2 forces the fact
 to resolve which version was current on the filing date, and a range join
@@ -348,8 +358,9 @@ needs revisiting.
 - **Type 2 on every attribute.** Full history, one extra row, and the same join
   risk for a change of registered address.
 
-A type 2 is planned for project 04, where a supplier changing name is part of
-the business case rather than an event that does not occur in the sample.
+A type 2 earns its cost where a changing identity is part of the business case
+rather than an event that does not occur in the sample. That is a property of the
+domain, not a default to reach for whenever an attribute can change.
 
 </details>
 
@@ -358,7 +369,9 @@ the business case rather than an event that does not occur in the sample.
 ## 6. Which presentation line a fact belongs to
 
 <details>
-<summary>pre.txt has one row per presentation line, and a concept appears on several lines of the same...</summary>
+<summary><b>The fact carries exactly one statement, resolved by a stated rule, because
+joining to the presentation table inflates the scope by 24.3%.</b> 22,604 facts match 28,103
+fact and line pairs, and 2,938 of them genuinely fall on more than one statement.</summary>
 
 `pre.txt` has one row per presentation line, and a concept appears on several
 lines of the same filing. Joining a fact to it fans out, which is the failure
@@ -428,10 +441,13 @@ to all five dimensions. Both return 22,604.
 ## 7. How the analytical scope reaches the marts
 
 <details>
-<summary>The ten companies were selected in week 1 and stored in src/config.py, which dbt cannot read.</summary>
+<summary><b>The roster of ten companies exists in exactly one file, read by both dbt and
+Python.</b> A roster written twice does not fail when the copies drift: the extractor refreshes
+one set of companies while the marts analyse another, and both runs complete.</summary>
 
-The ten companies were selected in week 1 and stored in `src/config.py`, which
-dbt cannot read. The scope has to arrive in SQL somehow.
+The roster is defined by the six criteria in [`scope.md`](scope.md), and it has
+to reach SQL somehow. dbt cannot read Python, and the Python stages need the same
+list to decide which companies to refresh.
 
 ### Decision
 
@@ -464,7 +480,8 @@ and three `10-Q` per company that criterion 2 of [`scope.md`](scope.md) promised
 - **Re-deriving the six criteria as a dbt model.** The most reproducible option,
   since the criteria are the definition rather than the list, and the most
   complex model in the repository. It also lets the scope move on its own when
-  new data arrives, which is the opposite of what project 02 needs from it.
+  new data arrives, which is the opposite of what a stable comparison needs from
+  it.
 
 </details>
 
@@ -473,7 +490,9 @@ and three `10-Q` per company that criterion 2 of [`scope.md`](scope.md) promised
 ## 8. What the marts cover
 
 <details>
-<summary>The fact could hold the scope or the whole source, and the dimensions could follow it or not.</summary>
+<summary><b>The marts are conformed to the ten companies, which takes the Parquet export
+from about 640 MB to 683 KB.</b> The export is committed so the repository can be read without
+running anything, and GitHub rejects files over 100 MB.</summary>
 
 The fact could hold the scope or the whole source, and the dimensions could
 follow it or not.
@@ -526,22 +545,20 @@ that is a property of the question rather than a gap in the model.
 
 ---
 
-## 9. The hazard this session added: one fact, several filings
+## 9. One economic fact, several filings
 
 <details>
-<summary>This one was not on the list of open decisions.</summary>
-
-This one was not on the list of open decisions. It was measured while building
-the fact and behaves exactly like `qtrs` and `segments`: it inflates a total
-quietly.
+<summary><b>1,840 of the 22,604 scope facts are superseded by a later filing, and not one of
+them is removed.</b> This hazard behaves exactly like the durations and the segment
+breakdowns: it inflates a total quietly, so it becomes a column rather than a
+filter.</summary>
 
 Every `10-Q` restates the prior year comparative, so the same company, concept,
 period, duration, unit and breakdown is filed again by a later filing. In the
-scope, **22,604 fact rows carry only 20,764 distinct economic facts, and 1,840
-rows are superseded by a later filing.**
+scope, **22,604 fact rows carry only 20,764 distinct economic facts.**
 
-No row is removed. The fact carries `economic_fact_key`, the natural key with the
-filing replaced by the company, and two flags derived from it:
+The fact carries `economic_fact_key`, the natural key with the filing replaced by
+the company, and two flags derived from it:
 
 - `is_latest_report`, true on the surviving version of each economic fact, 20,764
   rows.
@@ -552,15 +569,13 @@ filing replaced by the company, and two flags derived from it:
   in the `10-Q` of 2025-05-07, and Restaurant Brands from 481 to 479 million at
   2024-05-31, in the `10-K` of 2025-02-21 and the `10-Q` of 2025-05-08.
 
-> **Direction corrected 2026-08-06.** This paragraph and the column description
-> in `dbt/models/marts/schema.yml` both read "from 88 to 92" and "from 479 to
-> 481", which is the reverse of what happened: the later filing lowered each
-> figure. The values and the companies were right and the arrow was backwards,
-> which is the difference between a company finding more goodwill and a company
-> writing some off. Reproduced by
-> [`analysis/05_restatement_analysis.sql`](../analysis/05_restatement_analysis.sql),
-> whose third result set returns both facts with the filing date of every
-> version.
+**The direction is the whole content of the fact.** A company revising goodwill
+down has written some off; a company revising it up has found more. Both readings
+are arithmetically consistent with the same pair of numbers, so the flag is only
+useful if the earlier and later versions stay distinguishable, which is what
+`is_latest_report` is for. Both facts are reproduced by
+[`analysis/05_restatement_analysis.sql`](../analysis/05_restatement_analysis.sql),
+whose third result set returns them with the filing date of every version.
 
 That makes three flags on this fact for three different double counting hazards,
 `is_year_to_date`, `is_consolidated` and `is_latest_report`, and the pattern is
@@ -574,7 +589,10 @@ aggregate has to state which one it means.
 ## 10. Which models are incremental, and with which write strategy
 
 <details>
-<summary>The pipeline reloads a bulk snapshot that the SEC republishes quarterly, so every model faces...</summary>
+<summary><b>Both incremental models upsert, but on different strategies, and the difference
+is forced by 138 rows.</b> DuckDB's <code>MERGE</code> silently keeps one row of a duplicated
+key and drops the other, which would turn a documented failing test green for the wrong
+reason.</summary>
 
 The pipeline reloads a bulk snapshot that the SEC republishes quarterly, so
 every model faces the same question: reprocess everything, or only what
@@ -605,8 +623,11 @@ nothing**, while `delete+insert` keeps both. A merge strategy on this model
 would therefore delete 138 rows on every incremental run, and
 `unique_stg_num_fact_natural_key`, which currently fails on exactly 138 keys,
 would begin to pass. A test that passes because rows were deleted is worse than
-one that fails honestly, and this project has spent five sessions establishing
-that the 138 are real positions rather than noise; see decision 3.
+one that fails honestly, and the 138 are real positions rather than noise. That
+was established by measurement: two distinct values on every one of the 134
+conflicting keys, a median absolute difference of 3,245,000 USD, no sign
+relationship between the pairs, and no column in the row that could tell them
+apart. See decision 3.
 
 Inside the analytical scope the same key is unique on all 22,604 rows, measured:
 zero duplicates. The fact can therefore use `merge` safely, and it is the model
@@ -691,25 +712,35 @@ incremental model only ever sees what arrived. `dbt run --full-refresh` rebuilds
 
 ---
 
-## Decisions still open
+## What the model deliberately does not decide
 
 <details>
-<summary>Which tags mean revenue, and which mean the bottom line.</summary>
+<summary><b>Two questions are left to the analysis layer on purpose: which tags mean revenue,
+and how segment members map across companies.</b> Both are judgements about meaning rather than
+about structure, and a model that answers them buries the judgement inside a column where
+nobody can audit it.</summary>
 
-- **Which tags mean revenue, and which mean the bottom line.** No single
-  US-GAAP tag carries either; see [`data_quality.md`](data_quality.md). Metric
-  definitions have to coalesce over the accepted tags and keep the tag actually
-  used visible so the choice can be audited. This is analysis rather than
-  modelling and belongs to `analysis/` and to project 02.
+The distinction is not a matter of taste. A modelling decision can be defended
+with a row count: the choices above each name the facts they keep, the facts they
+drop and the alternatives they beat. Neither of the two below can. They are
+defensible only with an argument about what a number means, and an argument
+belongs in a query that states it, next to the result, where a reader can
+disagree with it.
+
+- **Which tags mean revenue, and which mean the bottom line.** No single US-GAAP
+  tag carries either; the measurements are in
+  [`data_quality.md`](data_quality.md). A metric definition has to coalesce over
+  the accepted tags and keep the tag it actually used visible, so the choice can
+  be audited per row. Putting that coalesce in the fact would freeze one reading
+  of revenue into the grain, and every downstream figure would inherit it without
+  saying so.
 - **Mapping segment members across companies.** The franchised against company
   operated split, which is the thesis of the scope, exists only as a breakdown,
-  and 438 of the 468 segment strings in the scope are used by exactly one
-  company. Comparing them needs a hand written mapping, which is analysis, not
-  modelling.
-*(A `dq_check_results` table was the third item here until it was built.
-`etl.dq_check_results` now records every check of every run, populated by
-`src/load_dq_results.py` from dbt's own artefact, and each of the ten documented
-failures declares its expected count in `meta.expected_failures` beside the test
-so the loader can refuse a run where a number moved. See the data dictionary.)*
+  and 438 of the 468 segment strings in the scope are used by exactly one company.
+  A cross company comparison needs a mapping written by hand, and a hand written
+  mapping that lives in a dimension looks like a fact.
+
+Both are answered in [`../analysis/`](../analysis), where each query opens by
+declaring the tags it accepted and the flags it applied.
 
 </details>
