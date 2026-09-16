@@ -32,7 +32,7 @@ companies that report no industry code at all.
 
 ## Contents
 
-_Each section expands on click._
+_Each entry states its finding; open one for the measurements behind it._
 
 - [Why profiling came before modelling](#why-profiling-came-before-modelling)
 - [1. The same concept is reported under different tags](#1-the-same-concept-is-reported-under-different-tags)
@@ -45,7 +45,7 @@ _Each section expands on click._
 - [8. Identifier formats are not what a reader assumes](#8-identifier-formats-are-not-what-a-reader-assumes)
 - [9. Anomalies that survive into the loaded data](#9-anomalies-that-survive-into-the-loaded-data)
 - [10. What is clean, and worth stating](#10-what-is-clean-and-worth-stating)
-- [Findings carried into the test layer](#findings-carried-into-the-test-layer)
+- [How each finding is tested](#how-each-finding-is-tested)
 - [Limitations of this profile](#limitations-of-this-profile)
 
 ---
@@ -66,13 +66,13 @@ force a decision about.
 ## 1. The same concept is reported under different tags
 
 <details open>
-<summary>This is the finding with the widest reach, because it breaks comparison between companies...</summary>
+<summary><b>There is no single US-GAAP tag for revenue, and none for the bottom
+line.</b> Four revenue tags are in use, 350 companies use more than one, and which one a
+company picks is a reporting choice rather than a property of its business.</summary>
 
-This is the finding with the widest reach, because it breaks comparison between
-companies rather than within one.
-
-**There is no single US-GAAP tag for revenue.** Across all `10-K` and `10-Q`
-consolidated US dollar facts:
+This is the only finding on this page that breaks comparison *between* companies
+rather than within one. Across all `10-K` and `10-Q` consolidated US dollar
+facts:
 
 | Tag | Companies using it | Facts |
 |---|---|---|
@@ -81,7 +81,6 @@ consolidated US dollar facts:
 | `RevenueFromContractWithCustomerIncludingAssessedTax` | 456 | 3,502 |
 | `RevenuesNetOfInterestExpense` | 36 | 307 |
 
-Which tag a company uses is a reporting choice, not a property of its business.
 Of the companies reporting revenue at all, 4,175 use exactly one of the three
 main tags, **344 use two, and 6 use all three.**
 
@@ -99,10 +98,11 @@ interests, so the split follows corporate structure rather than accounting
 quality. Texas Roadhouse and Restaurant Brands International report `ProfitLoss`
 and never `NetIncomeLoss`.
 
-**Consequence.** Any metric definition has to be a coalesce over the accepted
-tags, and the tag actually used has to stay visible in the model so the choice
-can be audited. A comparison built on one tag does not fail loudly; it silently
-drops every company that picked another one.
+**Consequence.** Any metric definition has to coalesce over the accepted tags,
+and the tag it actually used has to stay visible so the choice can be audited. A
+comparison built on a single tag does not fail loudly. It silently drops every
+company that picked another one and returns something that looks like a complete
+sector.
 
 </details>
 
@@ -111,7 +111,10 @@ drops every company that picked another one.
 ## 2. Not every company reports every total
 
 <details>
-<summary>Measured over the 4,477 companies that filed a complete annual cycle in 2025, one 10-K and...</summary>
+<summary><b>Total liabilities is absent for 534 companies that do report a balance sheet,
+and cost of revenue for more than half of all filers.</b> Operating margin, at 74.38%
+coverage, is the finest margin that generalises across an arbitrary set of
+companies.</summary>
 
 Measured over the 4,477 companies that filed a complete annual cycle in 2025,
 one `10-K` and three `10-Q`:
@@ -127,18 +130,20 @@ one `10-K` and three `10-Q`:
 | `OperatingIncomeLoss` | 3,330 | 74.38 |
 | Cost of revenue, either tag | 2,065 | **46.13** |
 
-Two entries deserve attention.
+Two entries deserve attention, and neither absence is an error on the filer's
+part.
 
-**`Liabilities` is absent for 534 companies that do report a balance sheet.**
-Total liabilities is not a required XBRL fact: a company can present only the
-balance sheet total and leave the reader to subtract equity. McDonald's,
-Brinker, Jack in the Box, Cracker Barrel and Aramark all do exactly that. A
-leverage metric keyed on the `Liabilities` tag would report those companies as
-having no data rather than as having a derivable figure.
+**Total liabilities is not a required XBRL fact.** A company can present only the
+balance sheet total and leave the reader to subtract equity. McDonald's, Brinker,
+Jack in the Box, Cracker Barrel and Aramark all do exactly that. A leverage
+metric keyed on the `Liabilities` tag reports those companies as having no data,
+when what they have is a figure that has to be derived from the accounting
+identity.
 
-**Cost of revenue is reported by fewer than half.** Gross margin therefore cannot
-be computed across an arbitrary set of companies. Operating margin, at 74.38%
-coverage, is the most granular margin that generalises.
+**Gross margin cannot be computed across an arbitrary set of companies.** A filer
+that presents a single cost line is complying with the rules; it simply means the
+input to the metric exists for fewer than half the field, so any sector wide
+gross margin is computed on a self selected subset.
 
 </details>
 
@@ -147,7 +152,9 @@ coverage, is the most granular margin that generalises.
 ## 3. Custom concepts dominate the vocabulary and not the volume
 
 <details>
-<summary>version is the discriminator: for a standard concept it names the taxonomy (us-gaap/2025), and...</summary>
+<summary><b>96.24% of the concept catalogue is invented by filers and carries 8.54% of the
+numbers.</b> 317,473 custom concepts against 12,388 standard ones, most of them appearing in a
+single filing and comparable across nothing.</summary>
 
 `version` is the discriminator: for a standard concept it names the taxonomy
 (`us-gaap/2025`), and for a company specific one it holds the filing's own
@@ -163,9 +170,12 @@ accession number.
 | Standard | 13,372,319 | **91.46** |
 | Custom | 1,249,220 | 8.54 |
 
-**96% of the vocabulary carries 8.5% of the numbers.** 5,700 distinct standard
-tag names account for the overwhelming majority of reported facts, while 106,849
-distinct custom tag names account for the rest.
+**Those two tables count different things, and both counts are needed.** The
+catalogue is grained on `(tag_name, version)`, so the same standard element
+appears once per taxonomy year and a custom concept once per filing that invented
+it. Counted by distinct *name* instead, the source holds 5,700 standard tag names
+and 106,849 custom ones. Any statement about "how many concepts" has to say which
+of the two it means.
 
 Taxonomies in use:
 
@@ -179,11 +189,11 @@ Taxonomies in use:
 | `ifrs/2025` | 63,783 | 0.44 |
 | `ifrs/2023` | 21,318 | 0.15 |
 
-**Consequence.** `dim_account` will hold every concept with an `is_custom_tag`
-flag rather than being filtered to the standard taxonomy, because the share of
-custom tagging is itself one of the questions the project answers. But the
-dimension is dominated by rows that appear in a single filing and can never be
-compared across companies, and that has to be stated wherever it is counted.
+**Consequence.** `dim_account` holds every concept with an `is_custom_tag` flag
+rather than being filtered to the standard taxonomy, because the share of custom
+tagging is itself one of the questions the project answers. The cost is a
+dimension dominated by rows that appear in a single filing and can never be
+compared across companies, which has to be stated wherever it is counted.
 
 The IFRS rows matter for a different reason: 641,049 facts come from filers using
 IFRS rather than US-GAAP, and those tag names do not overlap with the US-GAAP
@@ -196,10 +206,14 @@ ones at all.
 ## 4. Facts cover durations the documentation does not enumerate
 
 <details>
-<summary>qtrs states how many quarters a fact spans.</summary>
+<summary><b>88 distinct durations occur where the documentation implies three, and the
+trap is not the long tail but the values 2 and 3.</b> A nine month year-to-date figure sits in
+the same table as the three quarters that compose it, so an unconstrained sum lands near double
+the truth with no error raised.</summary>
 
 `qtrs` states how many quarters a fact spans. The SEC readme defines it as a
-count of quarters and does not restrict the values.
+count of quarters and does not restrict the values, and the data uses that
+latitude: the values run from 0 to 124.
 
 | `qtrs` | Meaning | Facts | % |
 |---|---|---|---|
@@ -210,14 +224,13 @@ count of quarters and does not restrict the values.
 | `4` | Full year | 2,533,938 | 17.33 |
 | `5` and above | Long tail across 83 values | 2,045 | 0.014 |
 
-**88 distinct values appear, from 0 to 124.**
+What makes `2` and `3` the trap rather than the long tail is that they are
+legitimate. A half year and a nine month figure are correctly reported, correctly
+typed and correctly keyed; nothing distinguishes them from the quarters in a
+`SUM()` except a column nobody is forced to read. The long tail is the opposite
+case: 2,045 rows, 0.014%, and visibly wrong on inspection.
 
-The trap is not the long tail; it is `2` and `3`. A nine month year to date
-figure sits in the same table as the three individual quarters that compose it.
-Summing the value column without constraining `qtrs` adds the same money twice
-and produces a total near double the truth, with no error raised.
-
-The long tail is almost certainly filer error: 124 quarters is 31 years, and the
+The long tail is almost certainly filer error. 124 quarters is 31 years, and the
 values appear on tags such as `StockIssuedDuringPeriodSharesNewIssues` and
 `RestructuringCharges`, where such a span has no accounting meaning.
 
@@ -232,7 +245,9 @@ fail on 2,188,094 rows.
 ## 5. Segment breakdowns outnumber consolidated figures
 
 <details>
-<summary>segments carries the XBRL axis and member a fact is broken down by: by region, by business...</summary>
+<summary><b>57.76% of all facts are a segment breakdown of a figure that is also reported
+consolidated.</b> Ignoring the column does not inflate a total at the margin; it more than
+doubles it.</summary>
 
 `segments` carries the XBRL axis and member a fact is broken down by: by region,
 by business line, by product.
@@ -247,8 +262,8 @@ Stable across the four quarters, between 56.9% and 58.9%. Zero rows have a null
 it to `NULL`, so "consolidated" and "unknown" stay distinguishable.
 
 A consolidated fact and its breakdowns share the same tag, period, duration and
-unit. Only `segments` separates them. Ignoring the column does not inflate totals
-at the margin; it more than doubles them.
+unit. Only `segments` separates them, which is why the column has to be part of
+the key rather than an attribute hanging off it.
 
 **Consequence.** `segments` is part of the natural key of the fact, and any
 aggregate has to state whether it reads consolidated rows only. That is what
@@ -267,62 +282,56 @@ have the same duplication behaviour and 1,692 distinct co-registrants appear.
 ## 6. Restatements are real, and the flag meant to signal them is not
 
 <details>
-<summary>prevrpt is documented as marking a submission that was subsequently amended.</summary>
+<summary><b>19,369 facts were reported with a changed value by a later filing, and
+<code>prevrpt</code>, the field documented to signal exactly that, is set on 5 filings out of
+26,085.</b> A usable definition of a restatement has to be built from the facts themselves
+rather than read off a flag.</summary>
 
-`prevrpt` is documented as marking a submission that was subsequently amended.
-It is set on **5 filings out of 26,085 (0.02%)**, and only one of those five is a
-`10-Q`. The rest are an `S-4/A`, a `10-K/A`, an `S-1/A` and an `11-K/A`.
+`prevrpt` is documented as marking a submission that was subsequently amended. It
+is set on **5 filings (0.02%)**, and only one of those five is a `10-Q`. The rest
+are an `S-4/A`, a `10-K/A`, an `S-1/A` and an `11-K/A` — amendments to
+registration and benefit plan filings rather than corrections to a financial
+statement.
 
-As a restatement signal it is unusable. The measurable definition is different:
-the same company reporting the same standard fact, for the same period, duration
-and unit, in more than one filing.
+The definition that can be measured instead is the same company reporting the
+same standard fact, for the same period, duration and unit, in more than one
+filing.
 
-| | Count | % |
+| | Count | |
 |---|---|---|
 | Distinct fact keys across `10-K` and `10-Q` | 9,795,654 | |
-| Reported in more than one filing | 1,409,903 | 14.39 of keys |
-| Reported with a changed value, as first counted | 20,929 | 1.48 of repeated |
+| Reported in more than one filing | 1,409,903 | 14.39% of keys |
+| **Reported with a changed value** | **19,369** | 1.37% of repeated |
+| Reported once and then left blank afterwards | 1,541 | |
+| Held only by the `qtrs > 4` long tail the staging layer drops | 19 | |
 
 Repetition is normal: every `10-Q` restates the prior year comparative. A
 **changed** value is the restatement.
 
-> **Corrected 2026-08-06, and the correction is the point.** The 20,929 above is
-> counted over the raw layer, where an unpopulated value is an empty string and
-> therefore counts as a value in its own right. Under that reading a figure
-> reported once and then left blank registers as a change, which it is not. The
-> same definition applied to the typed staging layer, where an empty value is
-> null and `count(distinct)` ignores it, separates the two:
->
-> | | Count |
-> |---|---|
-> | **The number changed between filings** | **19,369** |
-> | The figure was reported once and left blank afterwards | 1,541 |
-> | Keys held only by the `qtrs > 4` long tail the staging layer drops | 19 |
-> | Total, reproducing the original figure | 20,929 |
->
-> A withdrawn figure is a real event and worth counting. It is not a company
-> saying a different number.
->
-> **The company leaderboard first published here has been removed rather than
-> corrected, because it could not be reproduced.** It named Franklin BSP Capital
-> (1,632 facts), Azenta (1,008), ECD Automotive Design (952), Profusa (870) and
-> Moog (705), and no combination of the recorded filters returns those counts:
-> the companies are right, the numbers came from an ad hoc query whose
-> definition was not written down. Counting restated facts rather than the rows
-> they appear on, Franklin BSP Capital leads with 408 and Azenta follows with
-> 252.
->
-> The reproducible version of this whole measurement is
-> [`analysis/05_restatement_analysis.sql`](../analysis/05_restatement_analysis.sql),
-> which states its two filters with the rows each discards and returns the
-> leaderboard as part of its output.
+**The last two rows are why the count has to be taken on the typed layer.** In
+the raw layer an unpopulated value is an empty string, which `count(distinct)`
+treats as a value in its own right, so a figure reported once and then left blank
+registers as a change. It is not one: a company that stops reporting a number is
+not a company saying a different number. A withdrawn figure is a real event and
+worth counting, separately. Read off the raw layer the last three rows above collapse
+into a single count of 20,929, which is what that layer returns and what a query
+written without the distinction will report.
+
+**Which companies concentrate them, and why volume is the wrong measure.**
+Counting restated facts rather than the rows they appear on, Franklin BSP Capital
+leads with 408 and Azenta follows with 252. The share is the more informative
+figure: Franklin BSP Capital's 408 are 6.6% of what it repeats, while Azenta
+restated **252 of 402, or 62.7%**. A leaderboard ordered by volume names the
+companies that file the most, not the ones that change their minds.
 
 Separately, 1,193 filings (4.57%) are amendments, identified by a form type
 ending in `/A`.
 
 **Consequence.** This is the evidence base for business question 5, and it is why
-the incremental load has to merge on the natural key rather than append: a
-restatement must update the fact, not sit beside it.
+the incremental load merges on the natural key rather than appending: a
+restatement has to update the fact, not sit beside it. The reproducible
+measurement, stating both filters with the rows each one discards, is
+[`analysis/05_restatement_analysis.sql`](../analysis/05_restatement_analysis.sql).
 
 </details>
 
@@ -331,7 +340,9 @@ restatement must update the fact, not sit beside it.
 ## 7. Company identity is not stable
 
 <details>
-<summary>10 rows: Finding, Count, Base, %</summary>
+<summary><b>172 companies filed under more than one name, and the industry code they
+declare is weaker still.</b> Two SIC codes name the same industry and the filer picks one; a
+third places a large pizza chain in wholesale groceries.</summary>
 
 | Finding | Count | Base | % |
 |---|---|---|---|
@@ -350,8 +361,8 @@ typos: `SUNPOWER INC.` to `COMPLETE SOLARIA, INC.`, `UNITI GROUP INC.` to
 2.41% of companies, a Type 2 slowly changing dimension is not justified for this
 project; the last known name, with the change documented, is.
 
-**The industry code is weaker than the name.** `sic` is declared by the filer and
-is not validated, and the effect is visible without leaving one industry:
+`sic` is declared by the filer and validated by nobody, and the effect is visible
+without leaving a single industry:
 
 | SIC | Label | Companies | Includes |
 |---|---|---|---|
@@ -385,7 +396,10 @@ to left pad to 10 digits. Passing the value through unchanged returns 404.
 ## 9. Anomalies that survive into the loaded data
 
 <details>
-<summary>Period end dates outside any plausible range.</summary>
+<summary><b>Seven anomalies survive the load, and every one of them is a property of the
+source rather than of the loader.</b> Filer typos in period end dates, 138 duplicates on a key
+the SEC declares unique, an undocumented eighth statement code, and acceptance timestamps that
+legitimately precede the filing date.</summary>
 
 **Period end dates outside any plausible range.** 565 facts (0.00386%), across
 106 distinct date values and 264 filings, fall outside 2010 to 2027. The extremes
@@ -443,10 +457,11 @@ empty on only 4.
 ## 10. What is clean, and worth stating
 
 <details>
-<summary>Not every check found something.</summary>
+<summary><b>Referential integrity is complete in both directions between all four files,
+and not one of 13,966,434 populated values fails to parse as a number.</b> These are what make
+the findings above findings rather than load errors.</summary>
 
-Not every check found something. These passed outright and are the reason the
-findings above can be trusted as findings rather than as load errors.
+Every check in this table passed outright.
 
 | Check | Result |
 |---|---|
@@ -458,8 +473,6 @@ findings above can be trusted as findings rather than as load errors.
 | Concepts relabelled between quarters | 0 of 329,861 |
 | Duplicates on `sub(adsh)` | 0 |
 | Duplicates on `pre(adsh, report, line)` | 0 |
-
-Referential integrity is complete in both directions between all four files.
 
 **Values and footnotes.** 655,105 facts (4.48%) have an empty value. The
 expectation was that a footnote would explain them; it does not. Only **1,434 of
@@ -481,30 +494,48 @@ fact key and every measure filters on it.
 
 ---
 
-## Findings carried into the test layer
+## How each finding is tested
 
 <details>
-<summary>These become dbt tests in week 2.</summary>
+<summary><b>Ten of the 156 checks are expected to fail, and each declares the number it should
+return in <code>meta.expected_failures</code> beside the test itself.</b> A declared count that
+moves in either direction fails the load, so the figures on this page are re-measured on every
+run rather than quoted from here.</summary>
 
-These become dbt tests in week 2. Recorded here with the number each one is
-expected to catch on the current data.
+**This page and the tests measure different layers, and the counts differ
+accordingly.** Everything above is measured on the raw layer as loaded. The tests
+run against staging, which drops the 2,045 facts whose duration exceeds four
+quarters. Where the last two columns disagree, that is usually the reason. The
+two `accepted_values` tests disagree for a different one: they return offending
+*values*, not rows, so a single returned value covers all 257 lines it appears on.
 
-| Check | Type | Expected result today |
-|---|---|---|
-| `qtrs` in `(0, 1, 2, 3, 4)` after filtering the long tail | `accepted_values` | Excludes 2,045 rows |
-| `statement_code` in the seven documented values | `accepted_values` | **Fails on 257 rows** until the empty code is handled |
-| `balance_type` in `(D, C)` | `accepted_values` | 34,068 concepts have neither, so nullable |
-| Fact natural key unique | `unique` | **Fails on 138 keys** until a resolution rule is stated |
-| Every fact resolves to a filing, company, concept | `relationships` | Passes, 0 orphans |
-| `value` not null | `not_null` | Fails on 655,105 rows, documented exception |
-| Period end date within 2010 to 2027 | singular | Flags 565 facts |
-| Period end date not after the filing date | singular | Flags 2 filings |
-| One current name per company | singular | Flags 172 companies before the naming rule is applied |
-| Duplicate facts not explained by restatement | singular | 20,929 restated fact keys are the explained set |
+| Finding | Test | In the raw layer | Declared |
+|---|---|---|---|
+| Durations above 4 quarters are filer error | `accepted_values` on `period_length_qtrs` | 2,045 facts | Passes — the rows are filtered out in `stg_num` |
+| `statement_code` has an undocumented eighth value | `accepted_values_stg_pre_statement_code__…` | 257 lines | **1** value, the empty string |
+| The same, carried into the dimension | `accepted_values_dim_statement_statement_code__…` | 257 lines | **1** |
+| `balance_type` is neither `D` nor `C` | `accepted_values` on `balance_type` | 34,068 concepts | Passes — nulls are ignored, so it measures wrong values rather than absences |
+| The fact natural key is not unique | `unique_stg_num_fact_natural_key` | 138 key groups | **138** |
+| Every fact resolves to a filing, company and concept | `relationships` | 0 orphans | Passes |
+| `value` is unpopulated | `not_null_stg_num_value` | 655,105 facts | **655,031** |
+| The same, inside the analytical scope | `not_null_fct_financial_facts_value` | — | **67** |
+| Two concepts ship with no label at all | `not_null_stg_tag_tag_label` | — | **2** |
+| Period end dates outside 2010 to 2027 | `assert_fact_period_end_within_plausible_range` | 565 facts | **561** |
+| A filing whose period ends after it was filed | `assert_filing_period_end_not_after_filed_date` | 2 filings | **2** |
+| A company filing under more than one name | `assert_one_company_name_per_cik` | 172 companies | **172** |
+| A concept whose declared period type contradicts its own facts | `assert_fact_duration_matches_concept_period_type` | — | **33** |
 
 A check that fails and is documented is worth more than one that always passes.
-Four of the ten above are expected to fail on real data, and each failure is a
-property of the source that the model has to answer for.
+The ten counts in bold are properties of the source that the model answers for,
+and none of them was softened to let a build through: all 156 checks run at
+`error` severity.
+
+The comparison is enforced rather than read.
+[`src/load_dq_results.py`](../src/load_dq_results.py) reads what each check
+actually returned, compares it against what the check declared, and exits
+non-zero if any pair disagrees — so a documented failure that shrinks is as loud
+as one that grows. Every run lands in `etl.dq_check_results`, which gives the
+suite a history instead of only a latest result.
 
 </details>
 
