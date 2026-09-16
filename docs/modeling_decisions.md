@@ -634,6 +634,124 @@ zero duplicates. The fact can therefore use `merge` safely, and it is the model
 where the semantics are worth demonstrating, because it is the grain a
 restatement is defined on.
 
+### What the two strategies actually do
+
+Both are upserts, and dbt presents them as interchangeable ways to spell the same
+intent. They are not. They differ in what they treat as the unit of work, and
+that difference only becomes visible when a key is not unique.
+
+**`delete+insert` works on sets of keys.** dbt collects the distinct keys present
+in the incoming batch, deletes every target row holding one of them, and then
+inserts the batch whole:
+
+```sql
+delete from target
+where  fact_natural_key in (select fact_natural_key from batch);
+
+insert into target
+select * from batch;
+```
+
+Nothing in either statement inspects an individual row. Whatever arrives with a
+given key replaces whatever was there under that key, however many rows that is
+on either side.
+
+**`merge` works on pairs of rows.** One statement walks the batch against the
+target and decides, per match, whether to update or insert:
+
+```sql
+merge into target
+using  batch
+on     target.fact_key = batch.fact_key
+when matched     then update set value = batch.value, ...
+when not matched then insert values (...);
+```
+
+The `on` clause is a join, and a join is only well defined here if each target
+row matches at most one source row.
+
+**The same batch, run through both.** Take a key that already holds one row in
+the target, and a batch that carries two rows under it — which is exactly the
+shape of the 138 groups in `stg_num`:
+
+| | Target before | Batch | `delete+insert` leaves | `merge` leaves |
+|---|---|---|---|---|
+| key `A` | one row, value 10 | two rows, values 40 and 70 | **both**, 40 and 70 | **one**, 40 or 70 |
+| key `B` | absent | one row, value 5 | one row, 5 | one row, 5 |
+| key `C` | one row, value 3 | absent | untouched, 3 | untouched, 3 |
+
+Key `A` is the whole story. `delete+insert` removes the old row and inserts two,
+because it never asked how many rows share the key. `merge` finds two source rows
+competing to update one target row, and DuckDB resolves the ambiguity by applying
+one of them and discarding the other **without raising anything** — verified
+directly against the engine rather than inferred from the documentation. Other
+warehouses are stricter: Snowflake errors under `ERROR_ON_NONDETERMINISTIC_MERGE`
+and BigQuery raises on a duplicated match. DuckDB does not, so on this engine the
+data loss is silent.
+
+| | `delete+insert` | `merge` |
+|---|---|---|
+| Unit of work | a key | a pair of rows |
+| A key with several rows | keeps all of them | keeps one, silently, on DuckDB |
+| Cost of changing one row in a group | rewrites the whole group | updates that row |
+| Requires the key to be unique | no | **yes** |
+| Fits | a natural key the source does not honour | a key measured to be unique |
+
+Neither is the better strategy in general. `merge` expresses the intent more
+directly and touches less data, which is why it is the obvious default. It is the
+wrong default on a model whose entire purpose is to preserve a key collision that
+the source created and the documentation denies.
+
+### Full rebuild, upsert, and what each one guarantees
+
+The requirement behind this decision is one sentence: a restatement has to update
+the fact rather than sit beside it. There are two ways to end up satisfying it,
+and only one of them is a guarantee.
+
+**A full rebuild throws the table away.** `dbt run` on a `table` materialisation
+issues `create or replace table fct_financial_facts as select ...`, so every run
+produces the table from scratch out of whatever staging currently holds. No row
+is ever updated, because no row survives.
+
+**An upsert keeps the table and rewrites part of it.** Rows whose key arrives in
+the batch are replaced; every other row is left where it is. The write statement
+names the key and states what happens on a match.
+
+Now take a **correction on an existing key**: the SEC republishes an archive under
+the same name with one figure changed, so a row arrives carrying a key already in
+the table and a different `value`.
+
+- **Under the full rebuild** the new value appears. But look at why. Nothing
+  matched the key, nothing decided to overwrite anything: the old row is gone
+  because *every* row was discarded, and the new one is present because staging
+  now reads that way. The correct outcome is a by-product of how the table is
+  built.
+- **Under the upsert** the new value appears because `merge ... on fact_key` found
+  the key and `when matched then update` said what to do about it. The outcome is
+  a property of the statement that was written.
+
+That is the distinction between **a property of the materialisation** and **a
+guarantee of the write**, and it matters because materialisations change for
+reasons that have nothing to do with correctness. The day the fact outgrows a
+one-second rebuild and someone switches it to incremental for speed, the full
+rebuild's accidental correctness disappears — and it disappears **silently**, in
+whichever direction the new strategy happens to take. Under `append` the old and
+corrected rows would both be present and every total would be wrong. Nothing
+fails, no test necessarily catches it, and the requirement was never written down
+anywhere a reader could check it against the code.
+
+The guarantee is also the only version that can be demonstrated. The simulation
+recorded below — one scope fact rewritten in the raw layer with a different value
+and a later timestamp, then `dbt run`, then the same row counts and the new value
+in both layers — proves something about the upsert. Run against a full rebuild the
+identical test passes trivially, because any table reconstructed from scratch
+matches its input. A test that cannot fail is not evidence.
+
+This is why the fact is incremental despite being small. 22,604 rows rebuild in
+about a second, and an incremental run still touches a third of them, so there is
+no performance argument at all. It is incremental because the requirement asked
+for an upsert, and an upsert is something a model either performs or does not.
+
 ### What the incremental batch is, and why the fact's is wider than its input
 
 `stg_num` selects on `_ingested_at`, not on the source file name. Both catch a
@@ -662,10 +780,6 @@ and the lookback widens the batch to 7,797, **34.5% of the table**. That
 widening is structural rather than particular to this quarter, because every
 10-Q restates the prior year comparative and therefore reopens groups that
 already exist.
-
-Which is also why the fact is not incremental for speed. 22,604 rows rebuild in
-about a second and an incremental run still touches a third of them. It is
-incremental because the write has to be an upsert.
 
 ### What the merge does not cover, and why the flags stay
 
@@ -703,10 +817,10 @@ incremental model only ever sees what arrived. `dbt run --full-refresh` rebuilds
 - **`merge` on `stg_num`.** Matches the fact's strategy and reads consistently,
   at the cost of 138 silently deleted rows per run and a documented failing test
   turning green for the wrong reason.
-- **Leaving the fact as a full rebuild.** Simplest, correct today, and it gives
-  up the upsert: a corrected value for an existing key would be picked up only
-  because the whole table is thrown away each time, which is a property of the
-  materialisation rather than a guarantee of the write.
+- **Leaving the fact as a full rebuild.** Simplest and correct today, at the
+  price of holding the requirement by accident rather than by construction. See
+  the subsection above: a rebuild that happens to produce the right answer stops
+  producing it the moment the materialisation changes, and it cannot be tested.
 
 </details>
 
