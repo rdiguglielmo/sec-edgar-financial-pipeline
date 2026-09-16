@@ -8,7 +8,7 @@
 # The path is relative to the working directory dbt is invoked from, which is
 # the repository root:
 #
-#   dbt build --project-dir dbt --profiles-dir dbt
+#   dbt run --project-dir dbt --profiles-dir dbt
 #
 # Run from anywhere else and dbt-duckdb will silently create an empty database
 # at that relative location, and every model will fail on a missing source.

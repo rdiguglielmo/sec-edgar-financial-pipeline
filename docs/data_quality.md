@@ -357,6 +357,14 @@ typos: `SUNPOWER INC.` to `COMPLETE SOLARIA, INC.`, `UNITI GROUP INC.` to
 `WINDSTREAM PARENT, INC.`, `COHERUS BIOSCIENCES, INC.` to
 `COHERUS ONCOLOGY, INC.`.
 
+**The 88 counts an absent code as a value.** For 7 of them the only difference
+across the four quarters is that one filing carries no `sic` at all, so **81
+companies report two different codes** and 7 report one code and a blank. The
+distinction matters because the two cases need different handling: a blank is
+missing data, a second code is a contradiction. [`modeling_decisions.md`](modeling_decisions.md)
+section 5 uses the 81, because a type 1 dimension has to choose between competing
+values and a blank is not a competing value.
+
 **Consequence.** `dim_company` needs a stated rule for which name is current. At
 2.41% of companies, a Type 2 slowly changing dimension is not justified for this
 project; the last known name, with the change documented, is.
@@ -505,9 +513,11 @@ run rather than quoted from here.</summary>
 **This page and the tests measure different layers, and the counts differ
 accordingly.** Everything above is measured on the raw layer as loaded. The tests
 run against staging, which drops the 2,045 facts whose duration exceeds four
-quarters. Where the last two columns disagree, that is usually the reason. The
-two `accepted_values` tests disagree for a different one: they return offending
-*values*, not rows, so a single returned value covers all 257 lines it appears on.
+quarters, and that accounts for both disagreements below exactly: 4 of the 565
+out-of-range period ends and 74 of the 655,105 unpopulated values sit on rows
+whose duration is above four quarters. The two `accepted_values` tests disagree
+for a different reason: they return offending *values*, not rows, so a single
+returned value covers all 257 lines it appears on.
 
 | Finding | Test | In the raw layer | Declared |
 |---|---|---|---|

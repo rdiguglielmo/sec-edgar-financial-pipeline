@@ -317,6 +317,12 @@ What actually moves between filings, across all 7,151 companies:
 | Fiscal year end | 90 | 1.26% |
 | **Any of them** | **682** | **9.54%** |
 
+Each row counts companies reporting two *different* values. A further 7 companies
+report a SIC code on some filings and none on others, which
+[`data_quality.md`](data_quality.md) counts as a change and this table does not:
+an absent value is missing data, not a competing value, and a type 1 dimension
+only has to choose between competing values.
+
 And what each design costs in rows:
 
 | Design | Whole data set | In scope |

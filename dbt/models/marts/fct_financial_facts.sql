@@ -13,8 +13,8 @@
     Rows out: 22,604
     Discarded: 14,596,890 facts belonging to filings outside the scope. That is
     the only filter in this model. No duration filter, no consolidation filter,
-    no unit filter, no dropping of rows with an empty value: the three modelling
-    decisions of week 2 are already applied in stg_num and are not re-applied
+    no unit filter, no dropping of rows with an empty value: the three staging
+    modelling decisions are already applied in stg_num and are not re-applied
     here.
 
     Grain: the eight fields the SEC declares unique for num.txt, hashed into

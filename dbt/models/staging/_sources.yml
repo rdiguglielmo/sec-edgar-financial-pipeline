@@ -28,5 +28,5 @@ sources:
           by src/incremental.py rather than by the quarterly archives. One row
           per filing as indexed under one company, holding metadata only: the
           endpoint publishes accession numbers, forms and dates, never reported
-          figures. 867 rows after the first incremental run of 2026-08-06,
-          covering everything filed since the bulk load.
+          figures. 867 rows after the first incremental run, covering
+          everything the ten companies filed since the bulk load.

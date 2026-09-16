@@ -23,7 +23,7 @@
     quarterly_archive names that archive, and is_in_loaded_archives says whether
     the filing is already in the bulk load.
 
-    Measured on the first incremental run, 2026-08-06:
+    Measured on the first incremental run:
 
         867 filings indexed since the bulk load
         857 new, 10 already present in raw.sub
