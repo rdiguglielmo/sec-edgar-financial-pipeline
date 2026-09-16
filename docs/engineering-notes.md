@@ -1,7 +1,8 @@
 # Engineering Notes
 
-Working notes for this repository. Read [`README.md`](../README.md) for what the project is and how to run it;
-this file is only what someone working on it needs that the code does not already say.
+Working notes for this repository. Read [`README.md`](../README.md) for what the project is and how to run it,
+and [`pipeline.md`](pipeline.md) for how the stages fit together; this file is only the rules
+that are easy to break and expensive to break.
 
 ## The trap that produces a wrong number without anything failing
 
@@ -37,7 +38,8 @@ not obvious:
   everything fails with "source not found".
 - **Never `dbt build`.** It interleaves models and tests and skips everything downstream of a
   failing test — and ten of these tests fail deliberately, so `build` never reaches the marts.
-  Use `seed` + `run`, then `test` separately.
+  Use `seed` + `run`, then `test` separately. The full argument, and when `build` *is* the right
+  command, is in [`pipeline.md`](pipeline.md).
 - **[`src/load_dq_results.py`](../src/load_dq_results.py) runs only after `dbt test`**, never after `dbt run`. Every dbt
   invocation overwrites `dbt/target/run_results.json`.
 
@@ -66,34 +68,14 @@ README summarises what both do and what building them taught.
 The measures behind the dashboard obey the aggregation rule at the top of this file, which is
 where a report over this fact table goes wrong if it goes wrong at all.
 
-## Verifying a number
+**Every figure on those pages has its expected value written down before the query runs**, in
+[`verification-gates.sql`](../powerbi/verification-gates.sql). If a result disagrees with the
+expectation, the report is wrong — the expectation does not get adjusted to fit. That ordering
+is the whole mechanism, and it costs nothing.
 
-Every figure the dashboard shows is checked against the warehouse first, and the expected
-result is written down **before** the query runs. The queries are in
-[`powerbi/verification-gates.sql`](../powerbi/verification-gates.sql). If a result disagrees with the expectation, the report is
-wrong — the expectation is not adjusted to fit.
+## Re-exporting
 
-Run them, or any ad-hoc query, with [`src/query.py`](../src/query.py), **from the repository root** -
-the paths below are relative to it. Run from anywhere else and PowerShell reports the
-missing relative path as "is not recognized as a cmdlet", which reads like the command
-does not exist rather than like you are in the wrong folder:
-
-```
-.venv/Scripts/python src/query.py powerbi/verification-gates.sql
-.venv/Scripts/python src/query.py "SELECT * FROM marts.dim_company"
-```
-
-Read-only, and it uses only the `duckdb` package the pipeline already depends on. There is
-nothing else to install and no server to start.
-
-The [`Makefile`](../Makefile) records the same sequence, but `make` is not installed on a default Windows
-setup. The README calls each script directly, which is the supported path.
-
-## Conventions
-
-- Stage files by name. **Never `git add -A`** — the working tree carries untracked pipeline
-  artefacts, a 3 GB `data/` directory among them.
-- Commit messages describe the change in business terms, not the diff.
-- Rebuilding the pipeline produces a 1.8 MB binary diff even when no data changed:
-  [`fct_financial_facts.parquet`](../output/parquet/fct_financial_facts.parquet) differs in `_ingested_at` and `_batch_id`, and `_ingested_at`
-  is the incremental selector, so it cannot be dropped. Re-export only when the data moved.
+Rebuilding the pipeline produces a 1.8 MB binary diff even when no figure moved, because
+`_ingested_at` and `_batch_id` change on every load and `_ingested_at` is the incremental
+selector, so it cannot be dropped. **Re-export only when the data moved.** Detail in
+[`pipeline.md`](pipeline.md).

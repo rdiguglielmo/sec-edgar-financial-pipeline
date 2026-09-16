@@ -159,7 +159,9 @@ a file rather than a server, so nothing has to be started before the pipeline ru
 covers the whole data set while the marts cover ten companies**, so the quality suite measures
 the source rather than a 0.15% slice of it. **Bookkeeping is kept out of the data** in an `etl`
 schema, so rebuilding the raw layer does not take the record of what has been read and checked
-with it.
+with it — and that schema is built by the Python stages themselves, not by dbt, which is the
+one part of this diagram the model files do not explain. See
+[`docs/pipeline.md`](docs/pipeline.md).
 
 ## Data Modeling
 
@@ -309,9 +311,10 @@ what the third dashboard page reads.
 
 ## Step 6: Analytics
 
-Five standalone SQL queries in [`analysis/`](analysis/), one per business question, each opening
-with the flags it uses and why. A sixth, [`00_scope_selection.sql`](analysis/00_scope_selection.sql), reproduces the choice of the
-ten companies rather than answering a question about them.
+Six standalone SQL queries in [`analysis/`](analysis/). They are the reproduction layer of this
+repository rather than its business analysis: each regenerates figures the documentation quotes,
+and each opens by declaring which flags it applied and why, which makes them the worked examples
+of aggregating this fact table correctly.
 
 1. How did revenue and net income evolve per company, quarter over quarter?
 2. Which companies improved operating margin year over year, and which eroded it?
@@ -320,8 +323,13 @@ ten companies rather than answering a question about them.
    that cost comparability?
 5. How many facts were restated, and which companies concentrate those corrections?
 
+A sixth, [`00_scope_selection.sql`](analysis/00_scope_selection.sql), reproduces the choice of
+the ten companies from the raw layer, so [`docs/scope.md`](docs/scope.md) records a query rather
+than a decision someone remembers making.
+
 Questions 4 and 5 run against **staging**, over all 26,085 filings, because they are questions
-about the source rather than about the ten companies.
+about the source rather than about the ten companies — which is also why they cannot be answered
+from the exported Parquet, and why they belong here rather than downstream.
 
 ## Step 7: Dashboard
 
@@ -530,6 +538,7 @@ general-purpose tool rather than a part of this pipeline:
 | Document | What is in it |
 |---|---|
 | [`docs/engineering-notes.md`](docs/engineering-notes.md) | The rules that produce a wrong number without anything failing. Read first. |
+| [`docs/pipeline.md`](docs/pipeline.md) | What each stage writes and where, who builds the `etl` schema, and what `dbt test` leaves behind |
 | [`docs/scope.md`](docs/scope.md) | How the ten companies were selected, and what was rejected |
 | [`docs/data_dictionary.md`](docs/data_dictionary.md) | Every column, including the mapping from the SEC's own names |
 | [`docs/data_quality.md`](docs/data_quality.md) | Each source defect, measured, with its row count |

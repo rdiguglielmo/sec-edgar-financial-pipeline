@@ -2,7 +2,8 @@
 
 Every table and column an analyst or a report reads: the six marts models, which
 are exported to `output/parquet/`, and the two bookkeeping tables in the `etl`
-schema.
+schema. This page is the columns; [`pipeline.md`](pipeline.md) is where each
+table comes from.
 
 The staging layer is not repeated here. It is a typed and renamed projection of
 the four source files, documented column by column with its tests in
@@ -232,6 +233,9 @@ the source: each company is a separate HTTP request, and a shared watermark
 advanced past a company whose request failed would skip that company's filings
 permanently.
 
+Created and maintained by [`src/incremental.py`](../src/incremental.py), not by
+dbt. How it is seeded and how it moves is in [`pipeline.md`](pipeline.md).
+
 | Column | Type | Description |
 |---|---|---|
 | `source_name` | varchar | Primary key. The endpoint read, which here is one per company. |
@@ -245,8 +249,10 @@ permanently.
 ## etl.dq_check_results
 
 One row per data quality check per run, appended rather than overwritten.
-**156 rows per run.** Populated by `src/load_dq_results.py` from dbt's own
-`run_results.json`; nothing in it is typed in by hand.
+**156 rows per run.** Created and populated by
+[`src/load_dq_results.py`](../src/load_dq_results.py) from dbt's own
+`run_results.json`; nothing in it is typed in by hand, and no dbt model or `.sql`
+file is involved. Why it works that way is in [`pipeline.md`](pipeline.md).
 
 | Column | Type | Description |
 |---|---|---|
