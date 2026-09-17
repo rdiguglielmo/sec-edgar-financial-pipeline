@@ -73,17 +73,18 @@
 -- carries the prior year comparative, which is why one key in seven is reported
 -- more than once. Only a changed number is a correction.
 --
--- "A different number" is doing real work in that sentence. docs/data_quality.md
--- reports 20,929 restatements, counted over the raw layer where an unpopulated
--- value is an empty string and therefore counts as a value of its own. Under
--- that reading a figure reported once and then left blank registers as a
--- change. Separating the two:
+-- "A different number" is doing real work in that sentence. Read off the raw
+-- layer the count is 20,929, because there an unpopulated value is an empty
+-- string and therefore counts as a value of its own. Under that reading a
+-- figure reported once and then left blank registers as a change.
+-- docs/data_quality.md keeps the two apart for the same reason. Separating
+-- them:
 --
 --     19,369   the number changed between filings
 --      1,541   the figure was reported once and left blank afterwards
 --         19   keys held only by the qtrs > 4 long tail stg_num discards
 --     ------
---     20,929   the published figure
+--     20,929   the raw-layer reading
 --
 -- A withdrawn figure is a real event and is worth counting, but it is not a
 -- company saying a different number. Both are returned below rather than

@@ -75,9 +75,10 @@
     economic_fact_key identifies the fact across filings, is_latest_report marks
     the surviving version, and is_restated marks a row whose value differs from
     what an earlier filing reported for the same key. Restatements in the scope
-    are two, both goodwill: Yum! Brands from 88 to 92 million at 2024-04-30 and
-    Restaurant Brands from 479 to 481 million at 2024-05-31. Across all filings
-    there are 19,451, which is why business question 5 is answered against the
+    are two, both goodwill, both revised down in the first 10-Q after the 10-K:
+    Yum! Brands 92 to 88 million at 2024-04-30, Restaurant Brands 481 to 479
+    million at 2024-05-31. Across all filings
+    there are 19,369, which is why business question 5 is answered against the
     staging layer rather than here.
 
     No row is removed for any of this. Summing without a stance on duration, on

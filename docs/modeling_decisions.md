@@ -530,7 +530,7 @@ the scope they lose their base:
 | Question | Whole data set | In scope |
 |---|---|---|
 | 4, custom versus standard tagging | 106,845 custom names against 5,700 standard, 8.54% of facts | 114 against 379, 5.91% |
-| 5, restatements | **19,451** facts reported with a changed value | **2** |
+| 5, restatements | **19,369** facts reported with a changed value, on the staging layer | **2** |
 
 Question 4 still has an answer at scope level, and a narrower one is arguably
 more honest than a catalogue wide average. Question 5 does not: two goodwill
