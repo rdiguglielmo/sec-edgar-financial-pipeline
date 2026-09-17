@@ -35,6 +35,7 @@ It runs entirely on a laptop. No cloud account, no services to start, no credent
 - [Key Findings](#key-findings)
 - [How to Run](#how-to-run)
 - [What I Learned](#what-i-learned)
+- [AI Assistance](#ai-assistance)
 - [What Is Not in This Repository](#what-is-not-in-this-repository)
 - [Limitations](#limitations)
 - [Documentation](#documentation)
@@ -508,6 +509,12 @@ something and separated nothing. Catching that needed a measurement, not an opin
 validation, no visible effect. A card sized for a smaller callout clipped its own descenders and
 shipped `40 filinqs` across all three pages. It survived review because it reads as a font
 quirk. Reading the *words* in a screenshot, not just the layout, is now part of the checklist.
+
+## AI Assistance
+
+AI assistance was used in the development of this repository, primarily to accelerate the
+writing of code and the creation of diagrams. All AI-generated contributions were reviewed
+and validated before being incorporated into the project.
 
 ## What Is Not in This Repository
 
