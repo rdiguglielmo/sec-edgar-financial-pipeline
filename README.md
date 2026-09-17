@@ -239,9 +239,10 @@ Three source properties forced a modelling decision, each taken explicitly rathe
 omission. **Durations** — half-year and nine-month figures are kept alongside the quarters they
 contain, because nine of the ten companies report interim cash flow only as year-to-date; the
 hazard is exposed through `is_year_to_date` rather than filtered away. **Segment breakdowns** —
-kept in full with `is_consolidated`, because filtering them out would remove 8,445,022 facts and
-the entire statement of stockholders' equity. **Duplicates on the natural key** — both rows kept
-and flagged; the `unique` test fails on 138 keys, and that failure is the finding.
+kept in full with `is_consolidated`, because filtering them out would remove 8,445,022 facts
+from staging and 11,362 from the marts, and with them the entire statement of stockholders'
+equity. **Duplicates on the natural key** — both rows kept and flagged; the `unique` test
+fails on 138 keys, and that failure is the finding.
 
 Full reasoning, with the alternatives that lost, in
 [`docs/modeling_decisions.md`](docs/modeling_decisions.md).
@@ -322,7 +323,8 @@ of aggregating this fact table correctly.
 
 1. How did revenue and net income evolve per company, quarter over quarter?
 2. Which companies improved operating margin year over year, and which eroded it?
-3. How did leverage evolve by sector?
+3. How did leverage evolve by industry code, and does that code separate these companies at
+   all?
 4. What share of reported concepts are custom tags rather than standard US-GAAP, and what does
    that cost comparability?
 5. How many facts were restated, and which companies concentrate those corrections?
@@ -521,7 +523,7 @@ general-purpose tool rather than a part of this pipeline:
   [rdiguglielmo/powerbi-theme-lab](https://github.com/rdiguglielmo/powerbi-theme-lab), together
   with the dashboard above rendered in six themes.
 - **The PBIP project** — the semantic model and generated visual JSON. **Not published, here or
-  anywhere:** roughly forty machine-written files that are not meaningful to read as source, and
+  anywhere:** roughly forty files emitted by a generator, not meaningful to read as source, and
   putting them in front of a reader costs more than it explains. What they produce is in
   [Step 7](#step-7-dashboard), and `powerbi/verification-gates.sql` shows how every figure on
   them was checked.
