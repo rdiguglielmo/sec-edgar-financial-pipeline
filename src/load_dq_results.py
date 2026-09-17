@@ -12,8 +12,8 @@ Everything comes out of dbt/target/run_results.json, which dbt writes itself
 after every invocation, joined to manifest.json for the check's severity, its
 declared expectation and the model it covers. Nothing in this file knows how
 many rows any check is supposed to return. A hand maintained copy of those
-figures would drift from the tests within a session or two, and a quality table
-that disagrees with the quality suite is worse than no table.
+figures would drift the first time a threshold moved, and a quality table that
+disagrees with the quality suite is worse than no table.
 
 The expectation lives next to the test
 --------------------------------------

@@ -151,8 +151,8 @@ ORDER BY 1;
 --
 -- Scoped to the NINE the picker offers, derived here the same way gate 6 derives
 -- them rather than listed by hand, so this gate cannot drift away from the list
--- it is meant to protect. An earlier version of this gate asked the question
--- over the whole of dim_account, where the answer is not zero - see gate 7b.
+-- it is meant to protect. The scoping is the point rather than an optimisation:
+-- asked over the whole of dim_account the answer is not zero - see gate 7b.
 -- EXPECT: 0 rows.
 WITH picker AS (
     SELECT a.tag_label

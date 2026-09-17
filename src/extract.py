@@ -6,7 +6,7 @@ data/raw/ and left untouched: the raw layer is a faithful copy of the source,
 and every later stage reads from it rather than from the network.
 
 The script is idempotent. An archive that is already present is skipped, so a
-re-run after an interrupted session fetches only what is missing.
+re-run after an interrupted download fetches only what is missing.
 
 Usage:
     python src/extract.py
