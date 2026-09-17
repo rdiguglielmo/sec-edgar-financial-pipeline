@@ -71,16 +71,20 @@ drinking places**, each with a December fiscal year end and a complete 2025 fili
 McDonald's at 25.92 bn USD of FY2024 revenue down to Papa John's at 2.06 bn. Selection criteria,
 rejected sectors and the reproducing query are in [`docs/scope.md`](docs/scope.md).
 
-**What makes this data hard is not its volume.** It is that a reasonable-looking `SUM()` over the
-fact table is wrong by roughly a factor of two, and **nothing fails while it happens**:
+**What makes this data hard is not its volume.** It is that ignoring a single one of the flags
+below makes a `SUM()` over the fact table **2.21 times too large**, and **nothing fails while
+it happens**:
 
-| What is in the data | Why a naive sum breaks |
+| What is in the data | Why a naive sum breaks, measured on the fact table |
 |---|---|
-| Year-to-date rows sit **beside** the quarters they already contain | `period_length_qtrs` has **88** distinct values, not 3 |
-| Segment breakdowns repeat the company total | **57.76%** of rows — the majority, not an edge case |
-| Figures superseded by a later filing stay in the table | 1,840 of 22,604 facts |
-| 134 units of measure coexist in one column | USD, shares and pure ratios, all summable, all meaningless together |
+| Year-to-date rows sit **beside** the quarters they already contain | **5,135** of 22,604 facts are year-to-date |
+| Segment breakdowns repeat the company total | **11,362** of 22,604 — half the table, and the 2.21 above |
+| Figures superseded by a later filing stay in the table | 1,840 of 22,604 facts, every one an instant or a single quarter |
+| Two incompatible units share one column | **21,438** facts in USD and **1,166** in `shares`, both summable, meaningless together |
 | There is no single tag meaning "revenue" | 4 tags in use; 350 companies use more than one |
+
+**The source arrives worse.** Across all 26,085 filings `qtrs` takes **88** distinct values and
+`uom` **134**. Five and two reach the fact table; the reduction is what the staging layer is for.
 
 Every one of those is exposed as a boolean flag on the fact table, tested, and documented next to
 the decision that produced it. No query or measure in this project aggregates without taking an

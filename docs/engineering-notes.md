@@ -8,17 +8,22 @@ that are easy to break and expensive to break.
 
 **No measure or query may aggregate without taking an explicit position on
 `is_year_to_date`, `is_consolidated` and `is_latest_report`, and without filtering
-`unit_of_measure`.** One that does not is wrong by close to a factor of two:
+`unit_of_measure`.** Ignoring a single one of them makes the total 2.21 times too large:
 
-| Flag | What it inflates if ignored |
+| Flag | What it inflates if ignored, measured on this table |
 |---|---|
-| `is_year_to_date` | Year-to-date rows sit alongside the quarters they contain. `period_length_qtrs` has 88 distinct values, not three |
-| `is_consolidated` | Segment breakdowns repeat the company total. This is the majority of rows, not an edge case: 57.76% |
-| `is_latest_report` | Figures superseded by a later filing: 1,840 of 22,604 |
+| `is_year_to_date` | Year-to-date rows sit alongside the quarters they contain: 5,135 of 22,604 facts, at `period_length_qtrs` 2 and 3 |
+| `is_consolidated` | Segment breakdowns repeat the company total, 11,362 of 22,604, and a total that ignores them comes back 2.21 times too large |
+| `is_latest_report` | Figures superseded by a later filing: 1,840 of 22,604, every one of them an instant or a single quarter. No annual or year-to-date fact is superseded here, so a balance-sheet measure double counts where an annual income measure does not |
 
-Also: 134 distinct units coexist in the fact table, so `unit_of_measure` is always filtered;
-Q4 is derived and must be shown as such; and the three negative equity values must not surface
-as low ratios.
+Also: two units coexist in the fact table, USD on 21,438 facts and `shares` on 1,166, so
+`unit_of_measure` is always filtered; Q4 is derived and must be shown as such; and the three
+negative equity values must not surface as low ratios.
+
+**The source arrives worse on every count, which is what the staging layer is for.** Across all
+26,085 filings there are 88 distinct durations where the documentation implies three, and 134
+units of measure. Five durations and two units reach this table. Those larger figures belong to
+[`data_quality.md`](data_quality.md) and do not describe the fact table.
 
 **There is no single tag meaning "revenue", and none meaning the bottom line.** Four revenue
 tags are in use and 350 companies use more than one. Any such metric must `coalesce` over the
@@ -26,7 +31,7 @@ accepted tags and **make visible which one it used**. Within the ten-company sco
 `NetIncomeLoss` reaches 8 of 10 companies and `Revenues` only 6 — which is why the dashboard
 leads on operating income instead.
 
-Full detail: [`docs/data_dictionary.md`](data_dictionary.md), [`docs/modeling_decisions.md`](modeling_decisions.md), [`docs/data_quality.md`](data_quality.md).
+Full detail: [`data_dictionary.md`](data_dictionary.md), [`modeling_decisions.md`](modeling_decisions.md), [`data_quality.md`](data_quality.md).
 
 ## Running the pipeline
 
