@@ -35,3 +35,8 @@ Thumbs.db
 # user, and cache.abf is the imported data cache.
 powerbi/**/.pbi/localSettings.json
 powerbi/**/.pbi/cache.abf
+
+# Editor state. dbt/profiles.yml documents SEC_EDGAR_DB_PATH as an escape hatch
+# for the VS Code dbt extension, which reads its environment from a file in this
+# folder - the one place an absolute local path would enter the repository.
+.vscode/
